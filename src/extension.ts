@@ -6,14 +6,14 @@ let getDhikrStatusBarButton: vscode.StatusBarItem;
 let intervalId: NodeJS.Timeout;
 let timeInterval: number;
 
-const showDua = () => {
-    let dua: Dua = fetchDua();
+const showDua = (context: vscode.ExtensionContext) => {
+    let dua: Dua = fetchDua(context);
     vscode.window.showInformationMessage(dua.arabic);
 };
 
-const setupInterval = () => {
+const setupInterval = (context: vscode.ExtensionContext) => {
     clearInterval(intervalId);
-    intervalId = setInterval(showDua, timeInterval);
+    intervalId = setInterval(() => showDua(context), timeInterval);
 };
 
 export function activate(context: vscode.ExtensionContext) {
@@ -30,12 +30,12 @@ export function activate(context: vscode.ExtensionContext) {
     // Retrieve saved time interval or use default (30s)
     timeInterval = context.workspaceState.get('vsadhkar.timeInterval', 30000);
 
-    console.log(context.workspaceState.get('vsadhkar.timeInterval'));
+    console.log(timeInterval);
 
-    setupInterval();
+    setupInterval(context);
 
     const disposable = vscode.commands.registerCommand('vsadhkar.getDhikr', () => {
-        showDua();
+        showDua(context);
     });
 
     context.subscriptions.push(disposable);
@@ -78,7 +78,8 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     timeInterval = parseInt(message.timeInterval);
                     this._context.workspaceState.update('vsadhkar.timeInterval', timeInterval);
                     vscode.window.showInformationMessage(`Settings saved: Show Dua every ${timeInterval / 1000} seconds`);
-                    setupInterval();
+                    setupInterval(this._context);
+                    // Reload the webview content
                     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
                     break;
             }
@@ -110,9 +111,9 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     Donate
                 </button>
             </a>
-    
+
             <hr />
-    
+
             <form id="settingsForm">
                 <p>Show Dua every</p>
                 <select id="timeInterval">
@@ -125,7 +126,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                 </select>
                 <button type="submit">Save</button>
             </form>
-    
+
             <script>
                 const vscode = acquireVsCodeApi();
                 
@@ -141,7 +142,6 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
         </body>
         </html>`;
     }
-    
 }
 
 export function deactivate() {}
