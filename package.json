@@ -14,10 +14,32 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "exampleSidebar",
+          "title": "VSAdhkar Settings",
+          "icon": "$(heart)"
+        }
+      ]
+    },
+    "views": {
+      "exampleSidebar": [
+        {
+          "type": "webview",
+          "id": "vsadhkar.exampleWebview",
+          "name": "VSAdhkar Settings"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "vsadhkar.getDhikr",
-        "title": "Hello World"
+        "title": "Get Dhikr"
+      },
+      {
+        "command": "vsadhkar.openSettings",
+        "title": "Open VSAdhkar Settings Panel"
       }
     ]
   },

@@ -1,51 +1,93 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { fetchDua } from './lib/fetchDua';
 import { Dua } from './interfaces';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-
 let getDhikrStatusBarButton: vscode.StatusBarItem;
 
-
 const showDua = () => {
-	let dua: Dua = fetchDua();
-	vscode.window.showInformationMessage(dua.arabic);
+    let dua: Dua = fetchDua();
+    vscode.window.showInformationMessage(dua.arabic);
 };
 
 export function activate(context: vscode.ExtensionContext) {
+    // Status Bar Buttons
+    getDhikrStatusBarButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    getDhikrStatusBarButton.command = 'vsadhkar.getDhikr';
+    getDhikrStatusBarButton.text = `$(heart) Get Dhikr`;
+    getDhikrStatusBarButton.tooltip = "Click to Get a Dhikr";
+    context.subscriptions.push(getDhikrStatusBarButton);
+    getDhikrStatusBarButton.show();
 
-	// Status Bar Buttons
-	getDhikrStatusBarButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-	getDhikrStatusBarButton.command = 'vsadhkar.getDhikr';
-	getDhikrStatusBarButton.text = `$(heart) Get Dhikr`;
-	getDhikrStatusBarButton.tooltip = "Click to Get a Dhikr";
-	context.subscriptions.push(getDhikrStatusBarButton);
-	getDhikrStatusBarButton.show();
+    console.log('Congratulations, your extension "vsadhkar" is now active!');
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "vsadhkar" is now active!');
+    let timeInterval: number = 30000; // 30s
 
-	let timeInterval: number = 30000; // 30s
+    setInterval(() => {
+        showDua();
+    }, timeInterval);
 
-	setInterval(() => {
-		showDua();
-	}, timeInterval);
+    const disposable = vscode.commands.registerCommand('vsadhkar.getDhikr', () => {
+        showDua();
+    });
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('vsadhkar.getDhikr', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		showDua();
-	});
+    context.subscriptions.push(disposable);
 
-	context.subscriptions.push(disposable);
+    const provider = new ExampleSidebarProvider(context.extensionUri);
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(ExampleSidebarProvider.viewType, provider)
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vsadhkar.openSettings', () => {
+            vscode.commands.executeCommand('workbench.view.vsadhkar.exampleSidebar');
+        })
+    );
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() { }
+class ExampleSidebarProvider implements vscode.WebviewViewProvider {
+    public static readonly viewType = 'vsadhkar.exampleWebview';
+    private _view?: vscode.WebviewView;
+
+    constructor(private readonly _extensionUri: vscode.Uri) {}
+
+    public resolveWebviewView(
+        webviewView: vscode.WebviewView,
+        context: vscode.WebviewViewResolveContext,
+        _token: vscode.CancellationToken
+    ) {
+        this._view = webviewView;
+    
+        webviewView.webview.options = {
+            enableScripts: true,
+            localResourceRoots: [this._extensionUri]
+        };
+    
+        console.log('Resolving webview view...');
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        console.log('Webview HTML set.');
+    }
+    
+
+    private _getHtmlForWebview(webview: vscode.Webview): string {
+        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'style.css'));
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'script.js'));
+
+        return `<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link href="${styleUri}" rel="stylesheet">
+            <title>Example Webview</title>
+        </head>
+        <body>
+            <h1>Hello from Webview!</h1>
+            <h2>Free Palestine !</h2>
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Flag_of_Palestine.svg/640px-Flag_of_Palestine.svg.png" />
+            <script src="${scriptUri}"></script>
+        </body>
+        </html>`;
+    }
+}
+
+export function deactivate() {}
