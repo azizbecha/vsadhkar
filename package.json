@@ -16,7 +16,7 @@
   "contributes": {
     "commands": [
       {
-        "command": "vsadhkar.helloWorld",
+        "command": "vsadhkar.getDhikr",
         "title": "Hello World"
       }
     ]

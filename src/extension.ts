@@ -9,6 +9,12 @@ import { Dua } from './interfaces';
 
 let getDhikrStatusBarButton: vscode.StatusBarItem;
 
+
+const showDua = () => {
+	let dua: Dua = fetchDua();
+	vscode.window.showInformationMessage(dua.arabic);
+};
+
 export function activate(context: vscode.ExtensionContext) {
 
 	// Status Bar Buttons
@@ -26,8 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
 	let timeInterval: number = 30000; // 30s
 
 	setInterval(() => {
-		let dua: Dua = fetchDua();
-		vscode.window.showInformationMessage(dua.arabic);
+		showDua();
 	}, timeInterval);
 
 	// The command has been defined in the package.json file
@@ -36,8 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('vsadhkar.getDhikr', () => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
-		let dua: Dua = fetchDua();
-		vscode.window.showInformationMessage(dua.arabic);
+		showDua();
 	});
 
 	context.subscriptions.push(disposable);
