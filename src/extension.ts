@@ -6,23 +6,34 @@ import { Dua } from './interfaces';
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
+
+let getDhikrStatusBarButton: vscode.StatusBarItem;
+
 export function activate(context: vscode.ExtensionContext) {
+
+	// Status Bar Buttons
+	getDhikrStatusBarButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+	getDhikrStatusBarButton.command = 'vsadhkar.getDhikr';
+	getDhikrStatusBarButton.text = `$(heart) Get Dhikr`;
+	getDhikrStatusBarButton.tooltip = "Click to Get a Dhikr";
+	context.subscriptions.push(getDhikrStatusBarButton);
+	getDhikrStatusBarButton.show();
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "vsadhkar" is now active!');
 
-	let timeInerval: number = 30000; //30s
+	let timeInterval: number = 30000; // 30s
 
 	setInterval(() => {
 		let dua: Dua = fetchDua();
 		vscode.window.showInformationMessage(dua.arabic);
-	}, timeInerval);
+	}, timeInterval);
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('vsadhkar.helloWorld', () => {
+	const disposable = vscode.commands.registerCommand('vsadhkar.getDhikr', () => {
 		// The code you place here will be executed every time your command is executed
 		// Display a message box to the user
 		let dua: Dua = fetchDua();
@@ -33,4 +44,4 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() { }
