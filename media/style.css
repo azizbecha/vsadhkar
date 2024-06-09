@@ -1,3 +1,58 @@
 body {
-    font-family: Arial, Helvetica, sans-serif;
+    margin-top: 20px;
+}
+
+hr {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    border-top: 1px;
+}
+
+h1 {
+    font-weight: bold;
+}
+
+select {
+    padding: 5px 15px;
+    color: #fff;
+    background-color: #3c3c3c;
+    border-color: #3c3c3c;
+}
+
+a {
+    text-decoration: none;
+}
+
+.flex {
+    display: flex;
+    justify-content: space-around;
+}
+
+
+.w-100 {
+    width: 100%;
+}
+
+.w-50 {
+    width: 50%;
+}
+
+.mt-1 {
+    margin-top: 10px;
+}
+
+.mb-1 {
+    margin-bottom: 10px;
+}
+
+.ml-1 {
+    margin-left: 10px;
+}
+
+.mr-1 {
+    margin-right: 10px;
+}
+
+.m-1 {
+    margin: 10px;
 }

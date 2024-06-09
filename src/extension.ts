@@ -3,10 +3,17 @@ import { fetchDua } from './lib/fetchDua';
 import { Dua } from './interfaces';
 
 let getDhikrStatusBarButton: vscode.StatusBarItem;
+let intervalId: NodeJS.Timeout;
+let timeInterval: number;
 
 const showDua = () => {
     let dua: Dua = fetchDua();
     vscode.window.showInformationMessage(dua.arabic);
+};
+
+const setupInterval = () => {
+    clearInterval(intervalId);
+    intervalId = setInterval(showDua, timeInterval);
 };
 
 export function activate(context: vscode.ExtensionContext) {
@@ -20,13 +27,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.window.showInformationMessage("Free Palestine !");
 
-    console.log('Congratulations, your extension "vsadhkar" is now active!');
+    // Retrieve saved time interval or use default (30s)
+    timeInterval = context.workspaceState.get('vsadhkar.timeInterval', 30000);
 
-    let timeInterval: number = 30000; // 30s
+    console.log(context.workspaceState.get('vsadhkar.timeInterval'));
 
-    setInterval(() => {
-        showDua();
-    }, timeInterval);
+    setupInterval();
 
     const disposable = vscode.commands.registerCommand('vsadhkar.getDhikr', () => {
         showDua();
@@ -34,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(disposable);
 
-    const provider = new ExampleSidebarProvider(context.extensionUri);
+    const provider = new ExampleSidebarProvider(context.extensionUri, context);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(ExampleSidebarProvider.viewType, provider)
     );
@@ -50,7 +56,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'vsadhkar.exampleWebview';
     private _view?: vscode.WebviewView;
 
-    constructor(private readonly _extensionUri: vscode.Uri) {}
+    constructor(private readonly _extensionUri: vscode.Uri, private readonly _context: vscode.ExtensionContext) {}
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -58,38 +64,84 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
         _token: vscode.CancellationToken
     ) {
         this._view = webviewView;
-    
+
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [this._extensionUri]
         };
-    
-        console.log('Resolving webview view...');
+
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
-        console.log('Webview HTML set.');
+
+        webviewView.webview.onDidReceiveMessage(message => {
+            switch (message.command) {
+                case 'saveSettings':
+                    timeInterval = parseInt(message.timeInterval);
+                    this._context.workspaceState.update('vsadhkar.timeInterval', timeInterval);
+                    vscode.window.showInformationMessage(`Settings saved: Show Dua every ${timeInterval / 1000} seconds`);
+                    setupInterval();
+                    webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+                    break;
+            }
+        });
     }
-    
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'style.css'));
+        const vscodeStyleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'vscode.css'));
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'script.js'));
-
+        const palestineFlag = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'palestine.png'));
+        
         return `<!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <link href="${styleUri}" rel="stylesheet">
-            <title>Example Webview</title>
+            <link href="${vscodeStyleUri}" rel="stylesheet">
+            <title>VSAdhkar Settings</title>
         </head>
         <body>
-            <h1>Hello from Webview!</h1>
-            <h2>Free Palestine !</h2>
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Flag_of_Palestine.svg/640px-Flag_of_Palestine.svg.png" />
-            <script src="${scriptUri}"></script>
+            <h1>VSAdhkar Settings</h1>
+            <h3>Free Palestine !</h3>
+            <img src="${palestineFlag}" />
+            
+            <a href="https://www.gofundme.com/f/CareForGaza">
+                <button>
+                    Donate
+                </button>
+            </a>
+    
+            <hr />
+    
+            <form id="settingsForm">
+                <p>Show Dua every</p>
+                <select id="timeInterval">
+                    <option value="30000" ${timeInterval === 30000 ? 'selected' : ''}>30s (recommended)</option>
+                    <option value="60000" ${timeInterval === 60000 ? 'selected' : ''}>1 min</option>
+                    <option value="120000" ${timeInterval === 120000 ? 'selected' : ''}>2 min</option>
+                    <option value="180000" ${timeInterval === 180000 ? 'selected' : ''}>3 min</option>
+                    <option value="300000" ${timeInterval === 300000 ? 'selected' : ''}>5 min</option>
+                    <option value="600000" ${timeInterval === 600000 ? 'selected' : ''}>10 min</option>
+                </select>
+                <button type="submit">Save</button>
+            </form>
+    
+            <script>
+                const vscode = acquireVsCodeApi();
+                
+                document.getElementById('settingsForm').addEventListener('submit', event => {
+                    event.preventDefault();
+                    const timeInterval = document.getElementById('timeInterval').value;
+                    vscode.postMessage({
+                        command: 'saveSettings',
+                        timeInterval: timeInterval
+                    });
+                });
+            </script>
         </body>
         </html>`;
     }
+    
 }
 
 export function deactivate() {}
