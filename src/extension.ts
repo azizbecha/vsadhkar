@@ -18,6 +18,8 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(getDhikrStatusBarButton);
     getDhikrStatusBarButton.show();
 
+    vscode.window.showInformationMessage("Free Palestine !");
+
     console.log('Congratulations, your extension "vsadhkar" is now active!');
 
     let timeInterval: number = 30000; // 30s
