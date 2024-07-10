@@ -13,6 +13,7 @@ body {
 	font-weight: var(--vscode-font-weight);
 	font-family: var(--vscode-font-family);
 	background-color: var(--vscode-editor-background);
+	height: 100%;
 }
 
 ol,
@@ -20,8 +21,8 @@ ul {
 	padding-left: var(--container-paddding);
 }
 
-body > *,
-form > * {
+body>*,
+form>* {
 	margin-block-start: var(--input-margin-vertical);
 	margin-block-end: var(--input-margin-vertical);
 }

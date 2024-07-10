@@ -1,10 +1,12 @@
 body {
+    height: 100%;
     margin-top: 20px;
+    border-right: 1px solid #fff;
 }
 
 hr {
-    margin-top: 15px;
-    margin-bottom: 15px;
+    margin-top: 20px;
+    margin-bottom: 20px;
     border-top: 1px;
 }
 
@@ -17,6 +19,7 @@ select {
     color: #fff;
     background-color: #3c3c3c;
     border-color: #3c3c3c;
+    width: 100%;
 }
 
 a {
@@ -55,4 +58,8 @@ a {
 
 .m-1 {
     margin: 10px;
+}
+
+.prayer-time {
+    font-size: medium;
 }

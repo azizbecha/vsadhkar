@@ -2,7 +2,7 @@
   "name": "vsadhkar",
   "displayName": "VSAdhkar",
   "description": "VSAdhkar is a Visual Studio Code extension that brings daily adhkar (Islamic remembrances) and dua (supplications) directly into your coding environment. Stay spiritually connected while you work with timely notifications featuring essential adhkar and duas.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "repository": "https://github.com/azizbecha/vsadhkar",
   "icon": "vsadhkar.png",
   "publisher": "azizbecha",
@@ -43,6 +43,10 @@
       {
         "command": "vsadhkar.openSettings",
         "title": "Open VSAdhkar Settings Panel"
+      },
+      {
+        "command": "vsadhkar.selectLocation",
+        "title": "Select location"
       }
     ]
   },
@@ -66,7 +70,9 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "dotenv": "^16.4.5",
     "fs": "^0.0.1-security",
+    "moment": "^2.30.1",
     "path": "^0.12.7"
   }
 }
