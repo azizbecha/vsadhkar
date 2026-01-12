@@ -32,8 +32,7 @@ interface City {
 }
 
 let getDhikrStatusBarButton: vscode.StatusBarItem;
-let intervalId: NodeJS.Timeout;
-let updateIntervalId: NodeJS.Timeout;
+let intervalId: NodeJS.Timeout | undefined;
 
 let timeInterval: number;
 let country: string | undefined;
@@ -89,7 +88,9 @@ const showDua = (context: vscode.ExtensionContext) => {
 };
 
 const setupInterval = (context: vscode.ExtensionContext) => {
-    clearInterval(intervalId);
+    if (intervalId) {
+        clearInterval(intervalId);
+    }
     intervalId = setInterval(() => showDua(context), timeInterval);
 };
 
@@ -270,7 +271,6 @@ const updateLocationAndPrayerTimes = (context: vscode.ExtensionContext) => {
     if (prayerTimes !== undefined) {
         nextPrayerItem.text = `Next prayer: ${getNextPrayerTime(prayerTimes)}`;
     }
-    console.log(timeInterval);
 };
 
 export function activate(context: vscode.ExtensionContext) {
@@ -288,7 +288,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Retrieve saved time interval or use default (30s)
     timeInterval = context.globalState.get('vsadhkar.timeInterval', 30000);
-    console.log(timeInterval);
 
     // Get stored settings
     country = context.globalState.get("country");
@@ -319,8 +318,6 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(nextPrayerItem);
 
     setupInterval(context);
-
-    updateIntervalId = setInterval(() => updateLocationAndPrayerTimes(context), 1000);
 
     context.subscriptions.push(
         vscode.commands.registerCommand('vsadhkar.getDhikr', () => {
@@ -387,7 +384,6 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
         if (this._view) {
             updateLocationAndPrayerTimes(this._context);
             timeInterval = this._context.globalState.get('vsadhkar.timeInterval', 30000);
-            console.log(timeInterval);
             this._view.webview.html = this.getHtmlForWebview(this._view.webview);
         }
     }
@@ -461,6 +457,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
 }
 
 export function deactivate() {
-    clearInterval(intervalId);
-    clearInterval(updateIntervalId);
+    if (intervalId) {
+        clearInterval(intervalId);
+    }
 }
