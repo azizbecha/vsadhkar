@@ -382,6 +382,18 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('vsadhkar.selectLocation', () => selectLocation(context))
     );
 
+    // ── Debug: clear all extension data ──────────────────────────────────
+    context.subscriptions.push(
+        vscode.commands.registerCommand('vsadhkar.clearData', async () => {
+            await context.globalState.update("country",      undefined);
+            await context.globalState.update("state",        undefined);
+            await context.globalState.update("city",         undefined);
+            await context.globalState.update("prayerTimes",  undefined);
+            await context.globalState.update("sunTimings",   undefined);
+            vscode.window.showInformationMessage("VSAdhkar: extension data cleared. Reload window to test first-run flow.");
+        })
+    );
+
     // ── Sidebar provider ─────────────────────────────────────────────────
     provider = new ExampleSidebarProvider(context.extensionUri, context);
     context.subscriptions.push(
@@ -442,7 +454,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.onDidReceiveMessage(message => {
             switch (message.command) {
-                case 'saveSettings':
+                case 'saveSettings': {
                     var t = parseInt(message.t);
                     timeInterval = t;
                     this._context.globalState.update("vsadhkar.timeInterval", t);
@@ -450,6 +462,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     setupInterval(this._context);
                     provider.updateWebview();
                     break;
+                }
                 case 'selectLocation':
                     vscode.commands.executeCommand('vsadhkar.selectLocation');
                     break;

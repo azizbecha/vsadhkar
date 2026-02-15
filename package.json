@@ -55,6 +55,10 @@
       {
         "command": "vsadhkar.selectLocation",
         "title": "Select location"
+      },
+      {
+        "command": "vsadhkar.clearData",
+        "title": "Clear all data"
       }
     ]
   },
