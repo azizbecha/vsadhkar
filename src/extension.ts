@@ -457,6 +457,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
         <body>
             <div class="app-header">
                 <span class="app-name">☪️ VSAdhkar</span>
+                <a href="https://github.com/azizbecha/vsadhkar" class="github-link">GitHub</a>
             </div>
 
             ${locationSection}
@@ -464,7 +465,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
             <div class="section palestine-section">
                 <img src="${palestineFlag}" class="flag-img" />
                 <span class="palestine-label">🍉 Free Palestine</span>
-                <a href="https://www.gofundme.com/f/42fd8k-stand-with-gaza-provide-lifeline-to-families" class="btn-donate">Donate for Gaza</a>
+                <a href="https://www.gofundme.com/f/42fd8k-stand-with-gaza-provide-lifeline-to-families" class="btn-donate">Donate</a>
             </div>
 
             <script>
