@@ -361,8 +361,16 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
             localResourceRoots: [this._extensionUri]
         };
 
-        // Set initial HTML content
+        // Set initial HTML content with fresh data from globalState
+        updateLocationAndPrayerTimes(this._context);
         webviewView.webview.html = this.getHtmlForWebview(webviewView.webview);
+
+        // Refresh webview whenever it becomes visible (e.g. after QuickPick closes)
+        webviewView.onDidChangeVisibility(() => {
+            if (webviewView.visible) {
+                this.updateWebview();
+            }
+        });
 
         webviewView.webview.onDidReceiveMessage(message => {
             switch (message.command) {
@@ -439,13 +447,16 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
             <script>
                 const vscode = acquireVsCodeApi();
                 
-                document.getElementById('timeIntervalSelector').addEventListener('change', event => {
-                    const t = event.target.value;
-                    vscode.postMessage({
-                        command: 'saveSettings',
-                        t: t
+                const timeIntervalSelector = document.getElementById('timeIntervalSelector');
+                if (timeIntervalSelector) {
+                    timeIntervalSelector.addEventListener('change', event => {
+                        const t = event.target.value;
+                        vscode.postMessage({
+                            command: 'saveSettings',
+                            t: t
+                        });
                     });
-                });
+                }
 
                 document.getElementById('selectLocationButton').addEventListener('click', () => {
                     vscode.postMessage({ command: 'selectLocation' });
