@@ -52,6 +52,7 @@ let hijriDate: string | undefined;
 let currentDua: Dua | undefined;
 let calculationMethod: number;
 let notifyBeforeMinutes: number;
+let duaLanguage: string;
 let prayerNotificationTimeouts: NodeJS.Timeout[] = [];
 
 // In-memory cache for geo data (countries/states/cities never change)
@@ -119,7 +120,7 @@ const timeIntervals = [
 
 const showDua = (context: vscode.ExtensionContext) => {
     let dua: Dua = fetchDua(context);
-    vscode.window.showInformationMessage(dua.arabic);
+    vscode.window.showInformationMessage(duaLanguage === 'translation' ? dua.translation : dua.arabic);
 };
 
 const setupInterval = (context: vscode.ExtensionContext) => {
@@ -441,6 +442,7 @@ export function activate(context: vscode.ExtensionContext) {
     timeInterval        = context.globalState.get('vsadhkar.timeInterval', 30000);
     calculationMethod   = context.globalState.get('vsadhkar.calculationMethod', 3);
     notifyBeforeMinutes = context.globalState.get('vsadhkar.notifyBefore', 0);
+    duaLanguage         = context.globalState.get('vsadhkar.duaLanguage', 'arabic');
     hijriDate           = context.globalState.get("hijriDate");
 
     // ── Commands ─────────────────────────────────────────────────────────
@@ -567,6 +569,12 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     }
                     break;
                 }
+                case 'saveDuaLanguage': {
+                    duaLanguage = message.value;
+                    this._context.globalState.update('vsadhkar.duaLanguage', duaLanguage);
+                    provider.updateWebview();
+                    break;
+                }
             }
         });
     }
@@ -615,9 +623,11 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     <span>Dua</span>
                     <button class="btn-refresh" id="refreshDuaButton">↺</button>
                 </div>
-                <div class="dua-arabic">${currentDua.arabic}</div>
-                <div class="dua-transliteration">${currentDua.transliteration}</div>
-                <div class="dua-translation">${currentDua.translation}</div>
+                ${duaLanguage === 'translation'
+                    ? `<div class="dua-translation">${currentDua.translation}</div>`
+                    : `<div class="dua-arabic">${currentDua.arabic}</div>
+                <div class="dua-transliteration">${currentDua.transliteration}</div>`
+                }
             </div>` : ''}
 
             <div class="section">
@@ -639,6 +649,13 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                         <span class="setting-desc">Method</span>
                         <select id="methodSelector">
                             ${calculationMethods.map(m => `<option value="${m.value}" ${calculationMethod === m.value ? 'selected' : ''}>${m.label}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-desc">Dua language</span>
+                        <select id="duaLanguageSelector">
+                            <option value="arabic" ${duaLanguage === 'arabic' ? 'selected' : ''}>Arabic</option>
+                            <option value="translation" ${duaLanguage === 'translation' ? 'selected' : ''}>Translation</option>
                         </select>
                     </div>
                 </div>
@@ -736,6 +753,13 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                 if (methodSel) {
                     methodSel.addEventListener('change', e => {
                         vscode.postMessage({ command: 'saveMethod', value: e.target.value });
+                    });
+                }
+
+                const duaLangSel = document.getElementById('duaLanguageSelector');
+                if (duaLangSel) {
+                    duaLangSel.addEventListener('change', e => {
+                        vscode.postMessage({ command: 'saveDuaLanguage', value: e.target.value });
                     });
                 }
 
