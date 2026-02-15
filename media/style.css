@@ -101,6 +101,11 @@ body {
     padding: 5px 7px;
     border-radius: 3px;
     gap: 6px;
+    transition: background 0.1s;
+}
+
+.prayer-row:hover {
+    background: var(--vscode-list-hoverBackground);
 }
 
 .prayer-row.next {
