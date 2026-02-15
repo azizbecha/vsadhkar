@@ -53,6 +53,8 @@ let currentDua: Dua | undefined;
 let calculationMethod: number;
 let notifyBeforeMinutes: number;
 let duaLanguage: string;
+let tasbihCount: number;
+let tasbihTarget: number;
 let prayerNotificationTimeouts: NodeJS.Timeout[] = [];
 
 // In-memory cache for geo data (countries/states/cities never change)
@@ -443,6 +445,8 @@ export function activate(context: vscode.ExtensionContext) {
     calculationMethod   = context.globalState.get('vsadhkar.calculationMethod', 3);
     notifyBeforeMinutes = context.globalState.get('vsadhkar.notifyBefore', 0);
     duaLanguage         = context.globalState.get('vsadhkar.duaLanguage', 'arabic');
+    tasbihCount         = context.globalState.get('vsadhkar.tasbihCount', 0);
+    tasbihTarget        = context.globalState.get('vsadhkar.tasbihTarget', 33);
     hijriDate           = context.globalState.get("hijriDate");
 
     // ── Commands ─────────────────────────────────────────────────────────
@@ -575,6 +579,27 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     provider.updateWebview();
                     break;
                 }
+                case 'saveTasbihCount': {
+                    tasbihCount = parseInt(message.value, 10);
+                    this._context.globalState.update('vsadhkar.tasbihCount', tasbihCount);
+                    break;
+                }
+                case 'resetTasbih': {
+                    tasbihCount = 0;
+                    this._context.globalState.update('vsadhkar.tasbihCount', 0);
+                    break;
+                }
+                case 'saveTasbihTarget': {
+                    tasbihTarget = parseInt(message.value, 10);
+                    tasbihCount  = 0;
+                    this._context.globalState.update('vsadhkar.tasbihTarget', tasbihTarget);
+                    this._context.globalState.update('vsadhkar.tasbihCount', 0);
+                    break;
+                }
+                case 'tasbihComplete': {
+                    vscode.window.showInformationMessage(`🎉 Tasbih complete! ${tasbihTarget}/${tasbihTarget}`);
+                    break;
+                }
             }
         });
     }
@@ -699,6 +724,33 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
 
             ${locationSection}
 
+            <div class="section">
+                <div class="section-label">Tasbih</div>
+                <div class="tasbih-wrapper" data-count="${tasbihCount}" data-target="${tasbihTarget}">
+                    <div class="tasbih-row">
+                        <div class="tasbih-left">
+                            <div class="tasbih-display">
+                                <span class="tasbih-count" id="tasbihCount">${tasbihCount}</span>
+                                <span class="tasbih-sep">/</span>
+                                <span class="tasbih-target-display" id="tasbihTargetDisplay">${tasbihTarget}</span>
+                            </div>
+                            <div class="tasbih-progress">
+                                <div class="tasbih-progress-bar" id="tasbihProgressBar" style="width:${Math.min(100, (tasbihCount / tasbihTarget) * 100)}%"></div>
+                            </div>
+                        </div>
+                        <button class="btn-tasbih ${tasbihCount >= tasbihTarget ? 'complete' : ''}" id="tasbihBtn">+</button>
+                    </div>
+                    <div class="tasbih-controls">
+                        <button class="btn-change" id="tasbihResetBtn">Reset</button>
+                        <select id="tasbihTargetSelector">
+                            <option value="33"  ${tasbihTarget === 33  ? 'selected' : ''}>33</option>
+                            <option value="99"  ${tasbihTarget === 99  ? 'selected' : ''}>99</option>
+                            <option value="100" ${tasbihTarget === 100 ? 'selected' : ''}>100</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             <div class="section github-section">
                 <div class="github-message">Open source & free forever</div>
                 <a href="https://github.com/azizbecha/vsadhkar" class="github-link">View on GitHub →</a>
@@ -775,6 +827,52 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                         vscode.postMessage({ command: 'saveDuaLanguage', value: e.target.value });
                     });
                 }
+
+                // Tasbih counter — all state handled client-side, persisted via messages
+                (function initTasbih() {
+                    const wrapper = document.querySelector('.tasbih-wrapper');
+                    if (!wrapper) { return; }
+                    let count  = parseInt(wrapper.getAttribute('data-count') || '0', 10);
+                    let target = parseInt(wrapper.getAttribute('data-target') || '33', 10);
+
+                    const countEl   = document.getElementById('tasbihCount');
+                    const targetEl  = document.getElementById('tasbihTargetDisplay');
+                    const barEl     = document.getElementById('tasbihProgressBar');
+                    const btn       = document.getElementById('tasbihBtn');
+
+                    function refresh() {
+                        if (countEl) { countEl.textContent = String(count); }
+                        if (targetEl) { targetEl.textContent = String(target); }
+                        if (barEl) { barEl.style.width = Math.min(100, (count / target) * 100) + '%'; }
+                        if (btn) { btn.classList.toggle('complete', count >= target); }
+                    }
+
+                    btn?.addEventListener('click', () => {
+                        if (count >= target) { return; }
+                        count++;
+                        refresh();
+                        vscode.postMessage({ command: 'saveTasbihCount', value: count });
+                        if (count >= target) {
+                            vscode.postMessage({ command: 'tasbihComplete' });
+                        }
+                    });
+
+                    document.getElementById('tasbihResetBtn')?.addEventListener('click', () => {
+                        count = 0;
+                        refresh();
+                        vscode.postMessage({ command: 'resetTasbih' });
+                    });
+
+                    const tasbihTargetSel = document.getElementById('tasbihTargetSelector');
+                    if (tasbihTargetSel) {
+                        tasbihTargetSel.addEventListener('change', e => {
+                            target = parseInt(e.target.value, 10);
+                            count  = 0;
+                            refresh();
+                            vscode.postMessage({ command: 'saveTasbihTarget', value: target });
+                        });
+                    }
+                })();
 
                 document.getElementById('selectLocationButton')?.addEventListener('click', () => {
                     vscode.postMessage({ command: 'selectLocation' });

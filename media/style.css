@@ -289,6 +289,97 @@ select {
     background: var(--vscode-button-hoverBackground);
 }
 
+/* ── Tasbih ──────────────────────────────────────────── */
+.tasbih-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 2px 0 2px;
+}
+
+.tasbih-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tasbih-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.tasbih-display {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+}
+
+.tasbih-count {
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--vscode-foreground);
+    line-height: 1;
+}
+
+.tasbih-sep,
+.tasbih-target-display {
+    font-size: 13px;
+    color: var(--vscode-descriptionForeground);
+    font-variant-numeric: tabular-nums;
+}
+
+.tasbih-progress {
+    width: 100%;
+    height: 2px;
+    background: var(--vscode-widget-border, rgba(128,128,128,0.2));
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.tasbih-progress-bar {
+    height: 100%;
+    background: var(--vscode-button-background);
+    border-radius: 2px;
+    transition: width 0.12s ease;
+}
+
+.btn-tasbih {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    font-family: var(--vscode-font-family);
+    line-height: 1;
+    transition: background 0.1s, transform 0.08s;
+}
+
+.btn-tasbih:hover {
+    background: var(--vscode-button-hoverBackground);
+}
+
+.btn-tasbih:active {
+    transform: scale(0.92);
+}
+
+.btn-tasbih.complete {
+    background: var(--vscode-testing-iconPassed, #4caf50);
+    cursor: default;
+}
+
+.tasbih-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 /* ── GitHub ──────────────────────────────────────────── */
 .github-section {
     display: flex;
