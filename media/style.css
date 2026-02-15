@@ -167,6 +167,53 @@ body {
     opacity: 0.85;
 }
 
+/* ── Dua ─────────────────────────────────────────────── */
+.dua-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.btn-refresh {
+    background: none;
+    border: none;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0;
+    width: auto;
+    line-height: 1;
+}
+
+.btn-refresh:hover {
+    color: var(--vscode-foreground);
+    background: none;
+}
+
+.dua-arabic {
+    font-size: 16px;
+    line-height: 1.7;
+    text-align: right;
+    direction: rtl;
+    color: var(--vscode-foreground);
+    margin-bottom: 7px;
+}
+
+.dua-transliteration {
+    font-size: 11px;
+    font-style: italic;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 5px;
+    line-height: 1.5;
+}
+
+.dua-translation {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    line-height: 1.5;
+}
+
 /* ── Settings ────────────────────────────────────────── */
 .settings-rows {
     display: flex;

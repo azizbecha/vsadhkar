@@ -49,6 +49,7 @@ let midnightRefreshTimeout: NodeJS.Timeout | undefined;
 let dailyRefreshInterval: NodeJS.Timeout | undefined;
 
 let hijriDate: string | undefined;
+let currentDua: Dua | undefined;
 let calculationMethod: number;
 let notifyBeforeMinutes: number;
 let prayerNotificationTimeouts: NodeJS.Timeout[] = [];
@@ -471,6 +472,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewViewProvider(ExampleSidebarProvider.viewType, provider)
     );
 
+    // ── Initial dua ───────────────────────────────────────────────────────
+    currentDua = fetchDua(context);
+
     // ── Minute-tick: keeps status bar label current ───────────────────────
     setInterval(() => updateLocationAndPrayerTimes(context), 60000);
 
@@ -537,6 +541,10 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                 case 'selectLocation':
                     vscode.commands.executeCommand('vsadhkar.selectLocation');
                     break;
+                case 'refreshDua':
+                    currentDua = fetchDua(this._context);
+                    provider.updateWebview();
+                    break;
                 case 'saveNotifyBefore': {
                     notifyBeforeMinutes = parseInt(message.value, 10);
                     this._context.globalState.update('vsadhkar.notifyBefore', notifyBeforeMinutes);
@@ -598,6 +606,17 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     </div>`).join('')}
                 </div>
             </div>
+
+            ${currentDua ? `
+            <div class="section">
+                <div class="section-label dua-header">
+                    <span>Dua</span>
+                    <button class="btn-refresh" id="refreshDuaButton">↺</button>
+                </div>
+                <div class="dua-arabic">${currentDua.arabic}</div>
+                <div class="dua-transliteration">${currentDua.transliteration}</div>
+                <div class="dua-translation">${currentDua.translation}</div>
+            </div>` : ''}
 
             <div class="section">
                 <div class="section-label">Settings</div>
@@ -720,6 +739,10 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
 
                 document.getElementById('selectLocationButton')?.addEventListener('click', () => {
                     vscode.postMessage({ command: 'selectLocation' });
+                });
+
+                document.getElementById('refreshDuaButton')?.addEventListener('click', () => {
+                    vscode.postMessage({ command: 'refreshDua' });
                 });
             </script>
         </body>
