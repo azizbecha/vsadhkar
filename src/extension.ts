@@ -592,6 +592,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
         const vscodeStyleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'vscode.css'));
         const palestineFlag = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'palestine.png'));
         const prayerTimes: { [key: string]: string } | undefined = this._context.globalState.get("prayerTimes");
+        const sunTimings: { [key: string]: string } | undefined = this._context.globalState.get("sunTimings");
         const hasLocation = country !== undefined && state !== undefined && city !== undefined && prayerTimes !== undefined;
 
         const locationSection = hasLocation ? `
@@ -616,6 +617,18 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     </div>`).join('')}
                 </div>
             </div>
+
+            ${sunTimings ? `
+            <div class="section">
+                <div class="section-label">Sun Timings</div>
+                <div class="prayer-list">
+                    ${(['Imsak', 'Sunrise', 'Sunset'] as const).filter(k => sunTimings[k]).map(k => `
+                    <div class="prayer-row">
+                        <span class="prayer-row-name">${k}</span>
+                        <span class="prayer-row-time">${sunTimings[k]}</span>
+                    </div>`).join('')}
+                </div>
+            </div>` : ''}
 
             ${currentDua ? `
             <div class="section">
