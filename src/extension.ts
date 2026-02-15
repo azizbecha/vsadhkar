@@ -48,6 +48,11 @@ let provider: ExampleSidebarProvider;
 let midnightRefreshTimeout: NodeJS.Timeout | undefined;
 let dailyRefreshInterval: NodeJS.Timeout | undefined;
 
+let hijriDate: string | undefined;
+let calculationMethod: number;
+let notifyBeforeMinutes: number;
+let prayerNotificationTimeouts: NodeJS.Timeout[] = [];
+
 // In-memory cache for geo data (countries/states/cities never change)
 const geoCache = new Map<string, unknown>();
 
@@ -60,6 +65,29 @@ if (!API_KEY) {
     vscode.window.showErrorMessage('API Key is missing. Please set it in the .env file.');
     throw new Error('API Key is missing');
 }
+
+const calculationMethods = [
+    { label: "Muslim World League",    value: 3  },
+    { label: "ISNA (North America)",   value: 2  },
+    { label: "Egyptian Authority",     value: 5  },
+    { label: "Umm Al-Qura (Makkah)",   value: 4  },
+    { label: "University of Karachi",  value: 1  },
+    { label: "Gulf Region",            value: 8  },
+    { label: "Kuwait",                 value: 9  },
+    { label: "Qatar",                  value: 10 },
+    { label: "Singapore",              value: 11 },
+    { label: "Turkey (Diyanet)",       value: 13 },
+    { label: "Tehran",                 value: 7  },
+    { label: "Russia",                 value: 14 },
+];
+
+const notificationOptions = [
+    { label: "Off",        value: 0  },
+    { label: "5 minutes",  value: 5  },
+    { label: "10 minutes", value: 10 },
+    { label: "15 minutes", value: 15 },
+    { label: "30 minutes", value: 30 },
+];
 
 const timeIntervals = [
     {
@@ -216,12 +244,16 @@ const fetchCities = async (countryIso: string, stateIso: string): Promise<City[]
 };
 
 const fetchPrayerTimes = (country: string, state: string, city: string, context: vscode.ExtensionContext, callback: () => void) => {
-    fetch(`http://api.aladhan.com/v1/timingsByCity?country=${country}&state=${state}&city=${city}`)
+    const method = context.globalState.get<number>('vsadhkar.calculationMethod', 3);
+    fetch(`http://api.aladhan.com/v1/timingsByCity?country=${country}&state=${state}&city=${city}&method=${method}`)
         .then(response => response.json())
-        .then((data: any) => {
-            const timings = data.data.timings;
-            saveTimings(context, timings);
-            callback(); // Call the callback to update the webview
+        .then((raw: unknown) => {
+            const data = raw as { data: { timings: { [key: string]: string }; date: { hijri: { day: string; month: { en: string }; year: string } } } };
+            saveTimings(context, data.data.timings);
+            const h = data.data.date.hijri;
+            hijriDate = `${h.day} ${h.month.en} ${h.year} AH`;
+            context.globalState.update("hijriDate", hijriDate);
+            callback();
         })
         .catch(error => {
             vscode.window.showErrorMessage(`Error fetching prayer times: ${error}`);
@@ -276,18 +308,44 @@ const selectLocation = async (context: vscode.ExtensionContext) => {
 };
 
 const updateLocationAndPrayerTimes = (context: vscode.ExtensionContext) => {
-    timeInterval = context.globalState.get('vsadhkar.timeInterval', 30000);
-    country = context.globalState.get("country");
-    state = context.globalState.get("state");
-    city = context.globalState.get("city");
+    timeInterval        = context.globalState.get('vsadhkar.timeInterval', 30000);
+    calculationMethod   = context.globalState.get('vsadhkar.calculationMethod', 3);
+    notifyBeforeMinutes = context.globalState.get('vsadhkar.notifyBefore', 0);
+    country    = context.globalState.get("country");
+    state      = context.globalState.get("state");
+    city       = context.globalState.get("city");
     prayerTimes = context.globalState.get("prayerTimes");
+    hijriDate   = context.globalState.get("hijriDate");
     if (prayerTimes !== undefined && nextPrayerItem) {
         nextPrayerItem.text = `Next prayer: ${getNextPrayerTime(prayerTimes)}`;
     }
 };
 
+function schedulePrayerNotifications(prayerTimesObj: { [key: string]: string }) {
+    prayerNotificationTimeouts.forEach(t => clearTimeout(t));
+    prayerNotificationTimeouts = [];
+    if (notifyBeforeMinutes === 0) { return; }
+
+    const now = new Date();
+    Object.entries(prayerTimesObj).forEach(([prayer, timeStr]) => {
+        const [h, m] = timeStr.split(':').map(Number);
+        const prayerTime = new Date();
+        prayerTime.setHours(h, m, 0, 0);
+        const notifyAt = new Date(prayerTime.getTime() - notifyBeforeMinutes * 60 * 1000);
+        const delay = notifyAt.getTime() - now.getTime();
+        if (delay > 0) {
+            prayerNotificationTimeouts.push(setTimeout(() => {
+                vscode.window.showInformationMessage(
+                    `🕌 ${prayer} prayer in ${notifyBeforeMinutes} minute${notifyBeforeMinutes !== 1 ? 's' : ''}`
+                );
+            }, delay));
+        }
+    });
+}
+
 function setupAfterLocation(context: vscode.ExtensionContext) {
-    prayerTimes = context.globalState.get("prayerTimes");
+    prayerTimes  = context.globalState.get("prayerTimes");
+    hijriDate    = context.globalState.get("hijriDate");
     if (prayerTimes === undefined) { return; }
 
     if (!nextPrayerItem) {
@@ -297,6 +355,7 @@ function setupAfterLocation(context: vscode.ExtensionContext) {
     }
     nextPrayerItem.text = `Next prayer: ${getNextPrayerTime(prayerTimes)}`;
 
+    schedulePrayerNotifications(prayerTimes);
     scheduleMidnightRefresh(context);
     setupInterval(context);
 }
@@ -376,7 +435,10 @@ export function activate(context: vscode.ExtensionContext) {
     getDhikrStatusBarButton.show();
 
     vscode.window.showInformationMessage("Free Palestine !");
-    timeInterval = context.globalState.get('vsadhkar.timeInterval', 30000);
+    timeInterval        = context.globalState.get('vsadhkar.timeInterval', 30000);
+    calculationMethod   = context.globalState.get('vsadhkar.calculationMethod', 3);
+    notifyBeforeMinutes = context.globalState.get('vsadhkar.notifyBefore', 0);
+    hijriDate           = context.globalState.get("hijriDate");
 
     // ── Commands ─────────────────────────────────────────────────────────
     context.subscriptions.push(
@@ -475,6 +537,26 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                 case 'selectLocation':
                     vscode.commands.executeCommand('vsadhkar.selectLocation');
                     break;
+                case 'saveNotifyBefore': {
+                    notifyBeforeMinutes = parseInt(message.value, 10);
+                    this._context.globalState.update('vsadhkar.notifyBefore', notifyBeforeMinutes);
+                    if (prayerTimes) { schedulePrayerNotifications(prayerTimes); }
+                    break;
+                }
+                case 'saveMethod': {
+                    calculationMethod = parseInt(message.value, 10);
+                    this._context.globalState.update('vsadhkar.calculationMethod', calculationMethod);
+                    const c = this._context.globalState.get<string>("country");
+                    const s = this._context.globalState.get<string>("state");
+                    const ci = this._context.globalState.get<string>("city");
+                    if (c && s && ci) {
+                        fetchPrayerTimes(c, s, ci, this._context, () => {
+                            setupAfterLocation(this._context);
+                            provider.updateWebview();
+                        });
+                    }
+                    break;
+                }
             }
         });
     }
@@ -518,12 +600,26 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
             </div>
 
             <div class="section">
-                <div class="section-label">Dua Reminder</div>
-                <div class="setting-row">
-                    <span class="setting-desc">Show every</span>
-                    <select id="timeIntervalSelector">
-                        ${timeIntervals.map(t => `<option value="${t.value}" ${timeInterval === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
-                    </select>
+                <div class="section-label">Settings</div>
+                <div class="settings-rows">
+                    <div class="setting-row">
+                        <span class="setting-desc">Show dua every</span>
+                        <select id="timeIntervalSelector">
+                            ${timeIntervals.map(t => `<option value="${t.value}" ${timeInterval === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-desc">Notify before</span>
+                        <select id="notifyBeforeSelector">
+                            ${notificationOptions.map(o => `<option value="${o.value}" ${notifyBeforeMinutes === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-desc">Method</span>
+                        <select id="methodSelector">
+                            ${calculationMethods.map(m => `<option value="${m.value}" ${calculationMethod === m.value ? 'selected' : ''}>${m.label}</option>`).join('')}
+                        </select>
+                    </div>
                 </div>
             </div>` : `
             <div class="section">
@@ -547,6 +643,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
         <body>
             <div class="app-header">
                 <span class="app-name">☪️ VSAdhkar</span>
+                ${hijriDate ? `<span class="hijri-date">${hijriDate}</span>` : ''}
             </div>
 
             ${locationSection}
@@ -607,6 +704,20 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     });
                 }
 
+                const notifySel = document.getElementById('notifyBeforeSelector');
+                if (notifySel) {
+                    notifySel.addEventListener('change', e => {
+                        vscode.postMessage({ command: 'saveNotifyBefore', value: e.target.value });
+                    });
+                }
+
+                const methodSel = document.getElementById('methodSelector');
+                if (methodSel) {
+                    methodSel.addEventListener('change', e => {
+                        vscode.postMessage({ command: 'saveMethod', value: e.target.value });
+                    });
+                }
+
                 document.getElementById('selectLocationButton')?.addEventListener('click', () => {
                     vscode.postMessage({ command: 'selectLocation' });
                 });
@@ -620,4 +731,5 @@ export function deactivate() {
     if (intervalId)             { clearInterval(intervalId); }
     if (midnightRefreshTimeout) { clearTimeout(midnightRefreshTimeout); }
     if (dailyRefreshInterval)   { clearInterval(dailyRefreshInterval); }
+    prayerNotificationTimeouts.forEach(t => clearTimeout(t));
 }

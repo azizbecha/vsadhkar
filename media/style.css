@@ -24,6 +24,11 @@ body {
     letter-spacing: 0.2px;
 }
 
+.hijri-date {
+    font-size: 10px;
+    color: var(--vscode-descriptionForeground);
+}
+
 /* ── Sections ────────────────────────────────────────── */
 .section {
     padding: 10px 0px;
@@ -162,7 +167,13 @@ body {
     opacity: 0.85;
 }
 
-/* ── Dua Settings ────────────────────────────────────── */
+/* ── Settings ────────────────────────────────────────── */
+.settings-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
 .setting-row {
     display: flex;
     align-items: center;
