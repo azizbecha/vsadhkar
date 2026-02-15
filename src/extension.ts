@@ -402,6 +402,48 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
         const vscodeStyleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'vscode.css'));
         const palestineFlag = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'palestine.png'));
         const prayerTimes: { [key: string]: string } | undefined = this._context.globalState.get("prayerTimes");
+        const hasLocation = country !== undefined && state !== undefined && city !== undefined && prayerTimes !== undefined;
+
+        const locationSection = hasLocation ? `
+            <div class="section">
+                <div class="section-label">Location</div>
+                <div class="location-row">
+                    <div class="location-info">
+                        <div class="location-city">${city}</div>
+                        <div class="location-region">${state}, ${country}</div>
+                    </div>
+                    <button class="btn-change" id="selectLocationButton">Change</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-label">Prayer Times</div>
+                <div class="prayer-list" id="prayerList">
+                    ${Object.entries(prayerTimes!).map(([name, time]) => `
+                    <div class="prayer-row" data-time="${time}">
+                        <span class="prayer-row-name">${name}</span>
+                        <span class="prayer-row-time">${time}</span>
+                    </div>`).join('')}
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-label">Dua Reminder</div>
+                <div class="setting-row">
+                    <span class="setting-desc">Show every</span>
+                    <select id="timeIntervalSelector">
+                        ${timeIntervals.map(t => `<option value="${t.value}" ${timeInterval === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
+                    </select>
+                </div>
+            </div>` : `
+            <div class="section">
+                <div class="empty-state">
+                    <span class="empty-icon">📍</span>
+                    <div class="empty-title">No location set</div>
+                    <div class="empty-sub">Select your location to see prayer times</div>
+                    <button class="btn-primary" id="selectLocationButton">Select Location</button>
+                </div>
+            </div>`;
 
         return `<!DOCTYPE html>
         <html lang="en">
@@ -410,56 +452,54 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <link href="${styleUri}" rel="stylesheet">
             <link href="${vscodeStyleUri}" rel="stylesheet">
-            <title>VSAdhkar Settings</title>
+            <title>VSAdhkar</title>
         </head>
-        <body style="height: 100%">
-            <h1>☪️ VSAdhkar Settings</h1>
-            <h3>🍉Free Palestine </h3>
-            <img src="${palestineFlag}" />
-            
-            <a href="https://www.gofundme.com/f/42fd8k-stand-with-gaza-provide-lifeline-to-families">
-                <button>
-                    Donate
-                </button>
-            </a>
-            <hr />
-            ${country === undefined || state === undefined || city === undefined || prayerTimes === undefined ?
-                ("No location data found. Please select your location.") : (`
-                    <h3>📌 ${city}, ${state}, ${country}</h3>
-                    <h3>🕌 Prayer times</h3>
-                    <ul id="prayerTimesContainer">
-                        ${prayerTimes && Object.keys(prayerTimes).map(prayer => `<li class="prayer-time">${prayer}: ${prayerTimes[prayer]}</li>`).join('')}
-                    </ul>
-            
-            
-                    <form id="settingsForm">
-                        <h3>🤲 Showing Dua every ${verboseMs(timeInterval)}</h3>
-                        <select id="timeIntervalSelector">
-                            ${timeIntervals.map((time, key) => {
-                    return `<option key="${key}" value="${time.value}" ${timeInterval === time.value ? 'selected' : ''}>${time.label}</option>`;
-                })
-                    }
-                        </select>
-                    </form>`
-                )
-            }
-    
-            <button id="selectLocationButton">Update Location</button>
+        <body>
+            <div class="app-header">
+                <span class="app-name">☪️ VSAdhkar</span>
+            </div>
+
+            ${locationSection}
+
+            <div class="section palestine-section">
+                <img src="${palestineFlag}" class="flag-img" />
+                <span class="palestine-label">🍉 Free Palestine</span>
+                <a href="https://www.gofundme.com/f/42fd8k-stand-with-gaza-provide-lifeline-to-families" class="btn-donate">Donate for Gaza</a>
+            </div>
+
             <script>
                 const vscode = acquireVsCodeApi();
-                
-                const timeIntervalSelector = document.getElementById('timeIntervalSelector');
-                if (timeIntervalSelector) {
-                    timeIntervalSelector.addEventListener('change', event => {
-                        const t = event.target.value;
-                        vscode.postMessage({
-                            command: 'saveSettings',
-                            t: t
-                        });
+
+                // Highlight the next upcoming prayer
+                (function highlightNext() {
+                    const rows = document.querySelectorAll('.prayer-row');
+                    if (!rows.length) { return; }
+                    const now = new Date();
+                    let nextRow = null;
+                    for (const row of rows) {
+                        const [h, m] = row.getAttribute('data-time').split(':').map(Number);
+                        const t = new Date();
+                        t.setHours(h, m, 0, 0);
+                        if (t > now) { nextRow = row; break; }
+                    }
+                    if (!nextRow) { nextRow = rows[0]; }
+                    if (nextRow) {
+                        nextRow.classList.add('next');
+                        const badge = document.createElement('span');
+                        badge.className = 'next-badge';
+                        badge.textContent = 'Next';
+                        nextRow.querySelector('.prayer-row-name').after(badge);
+                    }
+                })();
+
+                const sel = document.getElementById('timeIntervalSelector');
+                if (sel) {
+                    sel.addEventListener('change', e => {
+                        vscode.postMessage({ command: 'saveSettings', t: e.target.value });
                     });
                 }
 
-                document.getElementById('selectLocationButton').addEventListener('click', () => {
+                document.getElementById('selectLocationButton')?.addEventListener('click', () => {
                     vscode.postMessage({ command: 'selectLocation' });
                 });
             </script>

@@ -1,65 +1,250 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 body {
-    height: 100%;
-    margin-top: 20px;
-    border-right: 1px solid #fff;
+    padding: 0;
+    overflow-x: hidden;
 }
 
-hr {
-    margin-top: 20px;
-    margin-bottom: 20px;
-    border-top: 1px;
+/* ── Header ─────────────────────────────────────────── */
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px 9px;
+    border-bottom: 1px solid var(--vscode-widget-border, rgba(128,128,128,0.2));
 }
 
-h1 {
-    font-weight: bold;
+.app-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--vscode-foreground);
+    letter-spacing: 0.2px;
+}
+
+/* ── Sections ────────────────────────────────────────── */
+.section {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--vscode-widget-border, rgba(128,128,128,0.1));
+}
+
+.section-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.9px;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 7px;
+}
+
+/* ── Location ────────────────────────────────────────── */
+.location-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.location-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.location-city {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.location-region {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.btn-change {
+    flex-shrink: 0;
+    padding: 3px 9px;
+    font-size: 11px;
+    font-family: var(--vscode-font-family);
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: none;
+    cursor: pointer;
+    border-radius: 2px;
+    width: auto;
+    outline-offset: 2px;
+}
+
+.btn-change:hover {
+    background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* ── Prayer Times ────────────────────────────────────── */
+.prayer-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.prayer-row {
+    display: flex;
+    align-items: center;
+    padding: 5px 7px;
+    border-radius: 3px;
+    gap: 6px;
+}
+
+.prayer-row.next {
+    background: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
+.prayer-row-name {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.next-badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 10px;
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    line-height: 14px;
+}
+
+.prayer-row-time {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--vscode-descriptionForeground);
+}
+
+.prayer-row.next .prayer-row-time {
+    color: inherit;
+    opacity: 0.85;
+}
+
+/* ── Dua Settings ────────────────────────────────────── */
+.setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.setting-desc {
+    font-size: 12px;
+    color: var(--vscode-foreground);
 }
 
 select {
-    padding: 5px 15px;
-    color: #fff;
-    background-color: #3c3c3c;
-    border-color: #3c3c3c;
-    width: 100%;
+    padding: 3px 6px;
+    font-size: 11px;
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-dropdown-foreground);
+    background: var(--vscode-dropdown-background);
+    border: 1px solid var(--vscode-dropdown-border, rgba(128,128,128,0.4));
+    cursor: pointer;
+    width: auto;
+    outline-offset: 2px;
 }
 
-a {
-    text-decoration: none;
-}
-
-.flex {
+/* ── Empty State ─────────────────────────────────────── */
+.empty-state {
     display: flex;
-    justify-content: space-around;
+    flex-direction: column;
+    align-items: center;
+    padding: 14px 0 6px;
+    text-align: center;
 }
 
+.empty-icon {
+    font-size: 26px;
+    margin-bottom: 8px;
+    display: block;
+}
 
-.w-100 {
+.empty-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+    margin-bottom: 3px;
+}
+
+.empty-sub {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 12px;
+}
+
+.btn-primary {
+    padding: 5px 14px;
+    font-size: 12px;
+    font-family: var(--vscode-font-family);
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    cursor: pointer;
     width: 100%;
+    outline-offset: 2px;
 }
 
-.w-50 {
-    width: 50%;
+.btn-primary:hover {
+    background: var(--vscode-button-hoverBackground);
 }
 
-.mt-1 {
-    margin-top: 10px;
+/* ── Palestine ───────────────────────────────────────── */
+.palestine-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 14px;
+    gap: 6px;
+    border-bottom: none;
 }
 
-.mb-1 {
-    margin-bottom: 10px;
+.flag-img {
+    width: 36px;
+    height: auto;
+    border-radius: 2px;
 }
 
-.ml-1 {
-    margin-left: 10px;
+.palestine-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
 }
 
-.mr-1 {
-    margin-right: 10px;
+.btn-donate {
+    display: inline-block;
+    padding: 4px 14px;
+    font-size: 11px;
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-textLink-foreground);
+    background: transparent;
+    border: 1px solid var(--vscode-textLink-foreground);
+    cursor: pointer;
+    text-decoration: none;
+    width: 100%;
+    text-align: center;
+    outline-offset: 2px;
+    transition: background 0.1s, color 0.1s;
 }
 
-.m-1 {
-    margin: 10px;
-}
-
-.prayer-time {
-    font-size: medium;
+.btn-donate:hover {
+    background: var(--vscode-textLink-foreground);
+    color: var(--vscode-editor-background);
 }
