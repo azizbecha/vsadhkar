@@ -457,10 +457,14 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
         <body>
             <div class="app-header">
                 <span class="app-name">☪️ VSAdhkar</span>
-                <a href="https://github.com/azizbecha/vsadhkar" class="github-link">GitHub</a>
             </div>
 
             ${locationSection}
+
+            <div class="section github-section">
+                <div class="github-message">Open source & free forever</div>
+                <a href="https://github.com/azizbecha/vsadhkar" class="github-link">View on GitHub →</a>
+            </div>
 
             <div class="section palestine-section">
                 <img src="${palestineFlag}" class="flag-img" />
