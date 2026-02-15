@@ -351,6 +351,8 @@ function setupAfterLocation(context: vscode.ExtensionContext) {
 
     if (!nextPrayerItem) {
         nextPrayerItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+        nextPrayerItem.command = 'vsadhkar.openSettings';
+        nextPrayerItem.tooltip = 'Click to open VSAdhkar';
         context.subscriptions.push(nextPrayerItem);
         nextPrayerItem.show();
     }
