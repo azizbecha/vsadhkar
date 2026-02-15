@@ -376,6 +376,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
             switch (message.command) {
                 case 'saveSettings':
                     var t = parseInt(message.t);
+                    timeInterval = t;
                     this._context.globalState.update("vsadhkar.timeInterval", t);
                     vscode.window.showInformationMessage(`Settings saved: Show Dua every ${verboseMs(t)}`);
                     setupInterval(this._context);
