@@ -48,6 +48,9 @@ let provider: ExampleSidebarProvider;
 let midnightRefreshTimeout: NodeJS.Timeout | undefined;
 let dailyRefreshInterval: NodeJS.Timeout | undefined;
 
+// In-memory cache for geo data (countries/states/cities never change)
+const geoCache = new Map<string, unknown>();
+
 // Load environment variables from .env file
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
@@ -170,40 +173,46 @@ function getNextPrayerTime(prayerTimes: { [key: string]: string }): string {
     return message;
 }
 
+const geoHeaders = () => {
+    const h = new Headers();
+    h.append("X-CSCAPI-KEY", API_KEY!);
+    return h;
+};
+
 const fetchCountries = async (): Promise<Country[]> => {
-    const headers = new Headers();
-    headers.append("X-CSCAPI-KEY", API_KEY);
+    const key = 'countries';
+    if (geoCache.has(key)) { return geoCache.get(key) as Country[]; }
 
     const response = await fetch("https://api.countrystatecity.in/v1/countries", {
-        method: 'GET',
-        headers: headers,
-        redirect: 'follow'
+        method: 'GET', headers: geoHeaders(), redirect: 'follow'
     });
-    return response.json() as Promise<Country[]>;
+    const data = await response.json() as Country[];
+    geoCache.set(key, data);
+    return data;
 };
 
 const fetchStates = async (countryIso: string): Promise<State[]> => {
-    const headers = new Headers();
-    headers.append("X-CSCAPI-KEY", API_KEY);
+    const key = `states:${countryIso}`;
+    if (geoCache.has(key)) { return geoCache.get(key) as State[]; }
 
     const response = await fetch(`https://api.countrystatecity.in/v1/countries/${countryIso}/states`, {
-        method: 'GET',
-        headers: headers,
-        redirect: 'follow'
+        method: 'GET', headers: geoHeaders(), redirect: 'follow'
     });
-    return response.json() as Promise<State[]>;
+    const data = await response.json() as State[];
+    geoCache.set(key, data);
+    return data;
 };
 
 const fetchCities = async (countryIso: string, stateIso: string): Promise<City[]> => {
-    const headers = new Headers();
-    headers.append("X-CSCAPI-KEY", API_KEY);
+    const key = `cities:${countryIso}:${stateIso}`;
+    if (geoCache.has(key)) { return geoCache.get(key) as City[]; }
 
     const response = await fetch(`https://api.countrystatecity.in/v1/countries/${countryIso}/states/${stateIso}/cities`, {
-        method: 'GET',
-        headers: headers,
-        redirect: 'follow'
+        method: 'GET', headers: geoHeaders(), redirect: 'follow'
     });
-    return response.json() as Promise<City[]>;
+    const data = await response.json() as City[];
+    geoCache.set(key, data);
+    return data;
 };
 
 const fetchPrayerTimes = (country: string, state: string, city: string, context: vscode.ExtensionContext, callback: () => void) => {
