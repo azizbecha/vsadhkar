@@ -45,6 +45,9 @@ let sunTimings: { [key: string]: string } | undefined;
 let nextPrayerItem: vscode.StatusBarItem;
 let provider: ExampleSidebarProvider;
 
+let midnightRefreshTimeout: NodeJS.Timeout | undefined;
+let dailyRefreshInterval: NodeJS.Timeout | undefined;
+
 // Load environment variables from .env file
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
@@ -255,7 +258,8 @@ const selectLocation = async (context: vscode.ExtensionContext) => {
         context.globalState.update("city", cityLabel);
 
         fetchPrayerTimes(selectedCountry.label, selectedState.label, cityLabel, context, () => {
-            provider.updateWebview(); // Update the webview content when location is selected and prayer times are fetched
+            setupAfterLocation(context);
+            if (provider) { provider.updateWebview(); }
         });
     } catch (error) {
         vscode.window.showErrorMessage(`Error fetching location data: ${error}`);
@@ -268,79 +272,143 @@ const updateLocationAndPrayerTimes = (context: vscode.ExtensionContext) => {
     state = context.globalState.get("state");
     city = context.globalState.get("city");
     prayerTimes = context.globalState.get("prayerTimes");
-    if (prayerTimes !== undefined) {
+    if (prayerTimes !== undefined && nextPrayerItem) {
         nextPrayerItem.text = `Next prayer: ${getNextPrayerTime(prayerTimes)}`;
     }
 };
 
+function setupAfterLocation(context: vscode.ExtensionContext) {
+    prayerTimes = context.globalState.get("prayerTimes");
+    if (prayerTimes === undefined) { return; }
+
+    if (!nextPrayerItem) {
+        nextPrayerItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+        context.subscriptions.push(nextPrayerItem);
+        nextPrayerItem.show();
+    }
+    nextPrayerItem.text = `Next prayer: ${getNextPrayerTime(prayerTimes)}`;
+
+    scheduleMidnightRefresh(context);
+    setupInterval(context);
+}
+
+function scheduleMidnightRefresh(context: vscode.ExtensionContext) {
+    if (midnightRefreshTimeout) { clearTimeout(midnightRefreshTimeout); }
+    if (dailyRefreshInterval)   { clearInterval(dailyRefreshInterval); }
+
+    const now = new Date();
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+    const msUntilMidnight = nextMidnight.getTime() - now.getTime();
+
+    const refresh = () => {
+        const c  = context.globalState.get<string>("country");
+        const s  = context.globalState.get<string>("state");
+        const ci = context.globalState.get<string>("city");
+        if (c && s && ci) {
+            fetchPrayerTimes(c, s, ci, context, () => {
+                setupAfterLocation(context);
+                if (provider) { provider.updateWebview(); }
+            });
+        }
+    };
+
+    midnightRefreshTimeout = setTimeout(() => {
+        refresh();
+        dailyRefreshInterval = setInterval(refresh, 24 * 60 * 60 * 1000);
+    }, msUntilMidnight);
+}
+
+async function autoDetectLocation(context: vscode.ExtensionContext) {
+    try {
+        const response = await fetch("https://ipapi.co/json/");
+        if (!response.ok) { throw new Error(`HTTP ${response.status}`); }
+        const data = await response.json() as { city?: string; region?: string; country_name?: string; };
+
+        const detectedCity    = data.city         ?? "";
+        const detectedRegion  = data.region       ?? "";
+        const detectedCountry = data.country_name ?? "";
+        if (!detectedCity || !detectedRegion || !detectedCountry) {
+            throw new Error("Incomplete location data");
+        }
+
+        const choice = await vscode.window.showInformationMessage(
+            `Detected location: ${detectedCity}, ${detectedRegion}, ${detectedCountry}. Use this?`,
+            "Yes", "Choose Manually"
+        );
+
+        if (choice === "Yes") {
+            await context.globalState.update("country", detectedCountry);
+            await context.globalState.update("state",   detectedRegion);
+            await context.globalState.update("city",    detectedCity);
+            country = detectedCountry;
+            state   = detectedRegion;
+            city    = detectedCity;
+            fetchPrayerTimes(detectedCountry, detectedRegion, detectedCity, context, () => {
+                setupAfterLocation(context);
+                if (provider) { provider.updateWebview(); }
+            });
+        } else {
+            await selectLocation(context);
+        }
+    } catch {
+        vscode.window.showWarningMessage("Could not auto-detect location. Please select manually.");
+        await selectLocation(context);
+    }
+}
+
 export function activate(context: vscode.ExtensionContext) {
 
-    // Status Bar Button to get Dhikr and Dua
+    // ── Status bar: Dhikr button ─────────────────────────────────────────
     getDhikrStatusBarButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     getDhikrStatusBarButton.command = 'vsadhkar.getDhikr';
-    getDhikrStatusBarButton.text = `$(heart) Get Dhikr`;
+    getDhikrStatusBarButton.text    = `$(heart) Get Dhikr`;
     getDhikrStatusBarButton.tooltip = "Click to Get a Dhikr";
     context.subscriptions.push(getDhikrStatusBarButton);
     getDhikrStatusBarButton.show();
 
-    // Show "Free Palestine" message at starting
     vscode.window.showInformationMessage("Free Palestine !");
-
-    // Retrieve saved time interval or use default (30s)
     timeInterval = context.globalState.get('vsadhkar.timeInterval', 30000);
 
-    // Get stored settings
-    country = context.globalState.get("country");
-    state = context.globalState.get("state");
-    city = context.globalState.get("city");
-    prayerTimes = context.globalState.get("prayerTimes");
-
-    if (country === undefined || state === undefined || city === undefined || prayerTimes === undefined) {
-        vscode.window.showErrorMessage("Geolocation is missing to fetch prayer times, please select your location from the dropdown");
-        selectLocation(context);
-    } else {
-        fetchPrayerTimes(country, state, city, context, () => null);
-    }
-
-    if (prayerTimes === undefined) { return; }
-
-    nextPrayerItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    nextPrayerItem.text = `Next prayer: ${getNextPrayerTime(prayerTimes)}`;
-    nextPrayerItem.show();
-
-    setInterval(() => {
-        updateLocationAndPrayerTimes(context);
-        if (prayerTimes !== undefined) {
-            nextPrayerItem.text = `Next prayer: ${getNextPrayerTime(prayerTimes)}`;
-        }
-    }, 60000); // Update every minute
-
-    context.subscriptions.push(nextPrayerItem);
-
-    setupInterval(context);
-
+    // ── Commands ─────────────────────────────────────────────────────────
     context.subscriptions.push(
-        vscode.commands.registerCommand('vsadhkar.getDhikr', () => {
-            showDua(context);
-        })
+        vscode.commands.registerCommand('vsadhkar.getDhikr', () => showDua(context))
     );
-
-    provider = new ExampleSidebarProvider(context.extensionUri, context);
-    context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider(ExampleSidebarProvider.viewType, provider)
-    );
-
     context.subscriptions.push(
         vscode.commands.registerCommand('vsadhkar.openSettings', () => {
             vscode.commands.executeCommand('workbench.view.vsadhkar.exampleSidebar');
         })
     );
-
     context.subscriptions.push(
-        vscode.commands.registerCommand('vsadhkar.selectLocation', () => {
-            selectLocation(context);
-        })
+        vscode.commands.registerCommand('vsadhkar.selectLocation', () => selectLocation(context))
     );
+
+    // ── Sidebar provider ─────────────────────────────────────────────────
+    provider = new ExampleSidebarProvider(context.extensionUri, context);
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(ExampleSidebarProvider.viewType, provider)
+    );
+
+    // ── Minute-tick: keeps status bar label current ───────────────────────
+    setInterval(() => updateLocationAndPrayerTimes(context), 60000);
+
+    // ── Location / prayer times bootstrap ────────────────────────────────
+    country     = context.globalState.get("country");
+    state       = context.globalState.get("state");
+    city        = context.globalState.get("city");
+    prayerTimes = context.globalState.get("prayerTimes");
+
+    const isFirstRun = !country || !state || !city || !prayerTimes;
+
+    if (isFirstRun) {
+        autoDetectLocation(context);
+    } else {
+        // Show cached times immediately, then refresh in background
+        setupAfterLocation(context);
+        fetchPrayerTimes(country!, state!, city!, context, () => {
+            setupAfterLocation(context);
+            provider.updateWebview();
+        });
+    }
 }
 
 class ExampleSidebarProvider implements vscode.WebviewViewProvider {
@@ -475,25 +543,38 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
             <script>
                 const vscode = acquireVsCodeApi();
 
-                // Highlight the next upcoming prayer
-                (function highlightNext() {
+                // Mark past prayers and highlight the next upcoming one
+                (function markPrayerRows() {
                     const rows = document.querySelectorAll('.prayer-row');
                     if (!rows.length) { return; }
                     const now = new Date();
-                    let nextRow = null;
+                    let nextFound = false;
                     for (const row of rows) {
-                        const [h, m] = row.getAttribute('data-time').split(':').map(Number);
+                        const timeStr = row.getAttribute('data-time');
+                        if (!timeStr) { continue; }
+                        const [h, m] = timeStr.split(':').map(Number);
                         const t = new Date();
                         t.setHours(h, m, 0, 0);
-                        if (t > now) { nextRow = row; break; }
+                        if (!nextFound && t > now) {
+                            nextFound = true;
+                            row.classList.add('next');
+                            const badge = document.createElement('span');
+                            badge.className = 'next-badge';
+                            badge.textContent = 'Next';
+                            row.querySelector('.prayer-row-name').after(badge);
+                        } else if (t <= now) {
+                            row.classList.add('past');
+                        }
                     }
-                    if (!nextRow) { nextRow = rows[0]; }
-                    if (nextRow) {
-                        nextRow.classList.add('next');
+                    // All prayers passed — wrap around to first (next day)
+                    if (!nextFound && rows.length) {
+                        const first = rows[0];
+                        first.classList.remove('past');
+                        first.classList.add('next');
                         const badge = document.createElement('span');
                         badge.className = 'next-badge';
                         badge.textContent = 'Next';
-                        nextRow.querySelector('.prayer-row-name').after(badge);
+                        first.querySelector('.prayer-row-name').after(badge);
                     }
                 })();
 
@@ -514,7 +595,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
 }
 
 export function deactivate() {
-    if (intervalId) {
-        clearInterval(intervalId);
-    }
+    if (intervalId)             { clearInterval(intervalId); }
+    if (midnightRefreshTimeout) { clearTimeout(midnightRefreshTimeout); }
+    if (dailyRefreshInterval)   { clearInterval(dailyRefreshInterval); }
 }

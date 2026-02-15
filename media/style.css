@@ -112,6 +112,27 @@ body {
     color: var(--vscode-list-activeSelectionForeground);
 }
 
+.prayer-row.past {
+    opacity: 0.45;
+}
+
+.prayer-row.past .prayer-row-name,
+.prayer-row.past .prayer-row-time {
+    text-decoration: line-through;
+    color: var(--vscode-disabledForeground, var(--vscode-descriptionForeground));
+}
+
+/* Edge case: post-Isha wrap-around — first prayer is both past and next */
+.prayer-row.past.next {
+    opacity: 1;
+}
+
+.prayer-row.past.next .prayer-row-name,
+.prayer-row.past.next .prayer-row-time {
+    text-decoration: none;
+    color: inherit;
+}
+
 .prayer-row-name {
     flex: 1;
     font-size: 12px;
