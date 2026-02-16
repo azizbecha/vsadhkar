@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { proxyGeo } from "../lib/proxy";
+import { geoRouteConfig } from "../lib/create-geo-route";
 
 const countrySchema = z
   .object({
@@ -17,15 +18,12 @@ const countrySchema = z
   .openapi("Country");
 
 const route = createRoute({
-  method: "get",
+  ...geoRouteConfig({
+    description: "A list of all countries",
+    response: z.array(countrySchema),
+  }),
   path: "/countries",
   summary: "List all countries",
-  responses: {
-    200: {
-      content: { "application/json": { schema: z.array(countrySchema) } },
-      description: "A list of all countries",
-    },
-  },
 });
 
 const app = new OpenAPIHono();

@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { proxyGeo } from "../lib/proxy";
+import { geoRouteConfig } from "../lib/create-geo-route";
 
 const stateSchema = z
   .object({
@@ -12,19 +13,16 @@ const stateSchema = z
   .openapi("State");
 
 const route = createRoute({
-  method: "get",
+  ...geoRouteConfig({
+    description: "A list of states in the given country",
+    response: z.array(stateSchema),
+  }),
   path: "/countries/{countryIso}/states",
   summary: "List states for a country",
   request: {
     params: z.object({
       countryIso: z.string().openapi({ description: "ISO2 country code", example: "US" }),
     }),
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: z.array(stateSchema) } },
-      description: "A list of states in the given country",
-    },
   },
 });
 
