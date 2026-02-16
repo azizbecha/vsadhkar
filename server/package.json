@@ -1,0 +1,22 @@
+{
+  "name": "vsadhkar-server",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsdown src/index.ts --format esm --out-dir dist",
+    "dev": "bun --hot src/dev.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.9",
+    "@hono/zod-openapi": "^1.2.2",
+    "@scalar/hono-api-reference": "^0.9.40",
+    "@t3-oss/env-core": "^0.13.10",
+    "hono": "^4.7.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "tsdown": "^0.20.3",
+    "typescript": "^5.4.5"
+  }
+}

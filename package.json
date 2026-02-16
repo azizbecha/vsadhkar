@@ -2,15 +2,15 @@
   "name": "vsadhkar",
   "displayName": "VSAdhkar",
   "description": "VSAdhkar is a Visual Studio Code extension that brings daily adhkar (Islamic remembrances) and dua (supplications) directly into your coding environment. Stay spiritually connected while you work with timely notifications featuring essential adhkar and duas.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "repository": "https://github.com/azizbecha/vsadhkar",
   "icon": "vsadhkar.png",
   "publisher": "azizbecha",
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
+    "vscode:prepublish": "bun run compile",
+    "compile": "tsdown src/extension.ts --format cjs --external vscode --dts --out-dir out",
+    "watch": "tsdown src/extension.ts --format cjs --external vscode --out-dir out --watch",
+    "pretest": "bun run compile && bun run lint",
     "lint": "eslint src --ext ts",
     "test": "vscode-test"
   },
@@ -23,7 +23,7 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "main": "./out/extension.js",
+  "main": "./out/extension.cjs",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -71,12 +71,10 @@
     "@vscode/test-cli": "^0.0.9",
     "@vscode/test-electron": "^2.4.0",
     "eslint": "^8.57.0",
+    "tsdown": "^0.20.3",
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
-    "fs": "^0.0.1-security",
-    "moment": "^2.30.1",
-    "path": "^0.12.7"
+    "moment": "^2.30.1"
   }
 }

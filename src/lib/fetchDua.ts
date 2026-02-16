@@ -1,7 +1,8 @@
-import { Dua } from "../interfaces";
-const fs = require("fs");
-const path = require("path");
+import * as fs from "fs";
+import * as path from "path";
 import * as vscode from 'vscode';
+
+import { Dua } from "../interfaces";
 
 export const fetchDua = (context: vscode.ExtensionContext): Dua => {
     const filePath = path.join(context.extensionPath, "media", "dua.json");

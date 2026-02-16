@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
 
 import moment from 'moment';
-import * as dotenv from 'dotenv';
-import * as path from 'path';
 
 import { fetchDua } from './lib/fetchDua';
 import { Dua } from './interfaces';
+
+const SERVER_URL = 'https://vsadhkar-server.vercel.app';
 
 interface Country {
     id: number;
@@ -59,16 +59,6 @@ let prayerNotificationTimeouts: NodeJS.Timeout[] = [];
 
 // In-memory cache for geo data (countries/states/cities never change)
 const geoCache = new Map<string, unknown>();
-
-// Load environment variables from .env file
-dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
-
-const API_KEY = process.env.API_KEY;
-
-if (!API_KEY) {
-    vscode.window.showErrorMessage('API Key is missing. Please set it in the .env file.');
-    throw new Error('API Key is missing');
-}
 
 const calculationMethods = [
     { label: "Muslim World League",    value: 3  },
@@ -205,19 +195,11 @@ function getNextPrayerTime(prayerTimes: { [key: string]: string }): string {
     return message;
 }
 
-const geoHeaders = () => {
-    const h = new Headers();
-    h.append("X-CSCAPI-KEY", API_KEY!);
-    return h;
-};
-
 const fetchCountries = async (): Promise<Country[]> => {
     const key = 'countries';
     if (geoCache.has(key)) { return geoCache.get(key) as Country[]; }
 
-    const response = await fetch("https://api.countrystatecity.in/v1/countries", {
-        method: 'GET', headers: geoHeaders(), redirect: 'follow'
-    });
+    const response = await fetch(`${SERVER_URL}/api/countries`);
     const data = await response.json() as Country[];
     geoCache.set(key, data);
     return data;
@@ -227,9 +209,7 @@ const fetchStates = async (countryIso: string): Promise<State[]> => {
     const key = `states:${countryIso}`;
     if (geoCache.has(key)) { return geoCache.get(key) as State[]; }
 
-    const response = await fetch(`https://api.countrystatecity.in/v1/countries/${countryIso}/states`, {
-        method: 'GET', headers: geoHeaders(), redirect: 'follow'
-    });
+    const response = await fetch(`${SERVER_URL}/api/countries/${countryIso}/states`);
     const data = await response.json() as State[];
     geoCache.set(key, data);
     return data;
@@ -239,9 +219,7 @@ const fetchCities = async (countryIso: string, stateIso: string): Promise<City[]
     const key = `cities:${countryIso}:${stateIso}`;
     if (geoCache.has(key)) { return geoCache.get(key) as City[]; }
 
-    const response = await fetch(`https://api.countrystatecity.in/v1/countries/${countryIso}/states/${stateIso}/cities`, {
-        method: 'GET', headers: geoHeaders(), redirect: 'follow'
-    });
+    const response = await fetch(`${SERVER_URL}/api/countries/${countryIso}/states/${stateIso}/cities`);
     const data = await response.json() as City[];
     geoCache.set(key, data);
     return data;
