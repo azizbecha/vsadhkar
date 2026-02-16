@@ -1,11 +1,16 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { apiReference } from "@scalar/hono-api-reference";
+import { Scalar } from "@scalar/hono-api-reference";
 
 import countries from "./routes/countries";
 import states from "./routes/states";
 import cities from "./routes/cities";
 
 const app = new OpenAPIHono().basePath("/api");
+
+app.use("*", async (c, next) => {
+  await next();
+  c.header("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=3600");
+});
 
 app.route("/", countries);
 app.route("/", states);
@@ -23,9 +28,9 @@ app.doc("/doc", {
 
 app.get(
   "/reference",
-  apiReference({
-    spec: { url: "/api/doc" },
-    pageTitle: "VSAdhkar Geo API",
+  Scalar({
+    url: "/api/doc",
+    title: "VSAdhkar Geo API",
   })
 );
 

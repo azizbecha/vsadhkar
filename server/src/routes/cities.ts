@@ -10,6 +10,8 @@ const citySchema = z
   })
   .openapi("City");
 
+type City = z.infer<typeof citySchema>;
+
 const route = createRoute({
   ...geoRouteConfig({
     description: "A list of cities in the given state",
@@ -29,8 +31,7 @@ const app = new OpenAPIHono();
 
 app.openapi(route, async (c) => {
   const { countryIso, stateIso } = c.req.valid("param");
-  const res = await proxyGeo(`/countries/${countryIso}/states/${stateIso}/cities`);
-  const data = await res.json();
+  const data = await proxyGeo<City[]>(`/countries/${countryIso}/states/${stateIso}/cities`);
   return c.json(data);
 });
 
