@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 import moment from 'moment';
 
-import { fetchDua } from './lib/fetchDua';
+import { fetchAllDuas, pickRandomDua } from './lib/fetchDua';
 import { Dua } from './interfaces';
 
 const SERVER_URL = 'https://vsadhkar-server.vercel.app';
@@ -50,6 +50,9 @@ let dailyRefreshInterval: NodeJS.Timeout | undefined;
 
 let hijriDate: string | undefined;
 let currentDua: Dua | undefined;
+let allDuas: Dua[] = [];
+let favoriteDuas: Dua[] = [];
+let activeScreen: 'main' | 'favorites' = 'main';
 let calculationMethod: number;
 let notifyBeforeMinutes: number;
 let duaLanguage: string;
@@ -110,8 +113,16 @@ const timeIntervals = [
     }
 ];
 
+const makeDuaKey = (dua: Dua): string => `${dua.arabic}||${dua.transliteration}||${dua.translation}`;
+
+const isSameDua = (a: Dua, b: Dua): boolean => makeDuaKey(a) === makeDuaKey(b);
+
+const findDuaByKey = (key: string): Dua | undefined => allDuas.find(dua => makeDuaKey(dua) === key);
+
 const showDua = (context: vscode.ExtensionContext) => {
-    let dua: Dua = fetchDua(context);
+    if (!allDuas.length) { allDuas = fetchAllDuas(context); }
+    const dua: Dua = pickRandomDua(allDuas);
+    currentDua = dua;
     vscode.window.showInformationMessage(duaLanguage === 'translation' ? dua.translation : dua.arabic);
 };
 
@@ -426,6 +437,9 @@ export function activate(context: vscode.ExtensionContext) {
     tasbihCount         = context.globalState.get('vsadhkar.tasbihCount', 0);
     tasbihTarget        = context.globalState.get('vsadhkar.tasbihTarget', 33);
     hijriDate           = context.globalState.get("hijriDate");
+    allDuas             = fetchAllDuas(context);
+    favoriteDuas        = context.globalState.get<Dua[]>('vsadhkar.favoriteDuas', []);
+    activeScreen        = context.globalState.get<'main' | 'favorites'>('vsadhkar.activeScreen', 'main');
 
     // ── Commands ─────────────────────────────────────────────────────────
     context.subscriptions.push(
@@ -459,7 +473,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // ── Initial dua ───────────────────────────────────────────────────────
-    currentDua = fetchDua(context);
+    currentDua = pickRandomDua(allDuas);
 
     // ── Minute-tick: keeps status bar label current ───────────────────────
     setInterval(() => updateLocationAndPrayerTimes(context), 60000);
@@ -528,9 +542,53 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     vscode.commands.executeCommand('vsadhkar.selectLocation');
                     break;
                 case 'refreshDua':
-                    currentDua = fetchDua(this._context);
+                    currentDua = pickRandomDua(allDuas);
                     provider.updateWebview();
                     break;
+                case 'toggleFavoriteDua': {
+                    if (!currentDua) { break; }
+                    const exists = favoriteDuas.some(dua => isSameDua(dua, currentDua!));
+                    if (exists) {
+                        favoriteDuas = favoriteDuas.filter(dua => !isSameDua(dua, currentDua!));
+                    } else {
+                        favoriteDuas = [...favoriteDuas, currentDua];
+                    }
+                    this._context.globalState.update('vsadhkar.favoriteDuas', favoriteDuas);
+                    provider.updateWebview();
+                    break;
+                }
+                case 'pickFavoriteDua': {
+                    const key = decodeURIComponent(String(message.key ?? ''));
+                    const selected = findDuaByKey(key) ?? favoriteDuas.find(dua => makeDuaKey(dua) === key);
+                    if (!selected) { break; }
+                    currentDua = selected;
+                    activeScreen = 'main';
+                    this._context.globalState.update('vsadhkar.activeScreen', activeScreen);
+                    provider.updateWebview();
+                    break;
+                }
+                case 'removeFavoriteDua': {
+                    const key = decodeURIComponent(String(message.key ?? ''));
+                    favoriteDuas = favoriteDuas.filter(dua => makeDuaKey(dua) !== key);
+                    this._context.globalState.update('vsadhkar.favoriteDuas', favoriteDuas);
+                    if (currentDua && makeDuaKey(currentDua) === key) {
+                        currentDua = pickRandomDua(allDuas);
+                    }
+                    provider.updateWebview();
+                    break;
+                }
+                case 'showFavoritesScreen': {
+                    activeScreen = 'favorites';
+                    this._context.globalState.update('vsadhkar.activeScreen', activeScreen);
+                    provider.updateWebview();
+                    break;
+                }
+                case 'showMainScreen': {
+                    activeScreen = 'main';
+                    this._context.globalState.update('vsadhkar.activeScreen', activeScreen);
+                    provider.updateWebview();
+                    break;
+                }
                 case 'saveNotifyBefore': {
                     notifyBeforeMinutes = parseInt(message.value, 10);
                     this._context.globalState.update('vsadhkar.notifyBefore', notifyBeforeMinutes);
@@ -597,6 +655,8 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
         const prayerTimes: { [key: string]: string } | undefined = this._context.globalState.get("prayerTimes");
         const sunTimings: { [key: string]: string } | undefined = this._context.globalState.get("sunTimings");
         const hasLocation = country !== undefined && state !== undefined && city !== undefined && prayerTimes !== undefined;
+        const isCurrentFavorite = currentDua ? favoriteDuas.some(dua => isSameDua(dua, currentDua!)) : false;
+        const isFavoritesScreen = activeScreen === 'favorites';
 
         const locationSection = hasLocation ? `
             <div class="section">
@@ -644,6 +704,14 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     : `<div class="dua-arabic">${currentDua.arabic}</div>
                 <div class="dua-transliteration">${currentDua.transliteration}</div>`
                 }
+                <div class="dua-actions">
+                    <button class="btn-change dua-action-btn ${isCurrentFavorite ? 'active' : ''}" id="favoriteDuaButton">
+                        ${isCurrentFavorite ? '★ Favorited' : '☆ Favorite'}
+                    </button>
+                    <button class="btn-change dua-action-btn" id="openFavoritesButton">
+                        Favorites (${favoriteDuas.length})
+                    </button>
+                </div>
             </div>` : ''}
 
             <div class="section">
@@ -685,6 +753,32 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                 </div>
             </div>`;
 
+        const favoritesSection = `
+            <div class="section">
+                <div class="section-label favorites-header">
+                    <span>Favorite Duas</span>
+                    <button class="btn-change" id="backToMainButton">Back</button>
+                </div>
+                ${favoriteDuas.length ? `
+                    <div class="favorites-list">
+                        ${favoriteDuas.map(dua => {
+                            const key = makeDuaKey(dua);
+                            const encodedKey = encodeURIComponent(key);
+                            return `
+                            <div class="favorite-card" data-key="${encodedKey}">
+                                <div class="favorite-translation">${dua.translation}</div>
+                                <div class="favorite-transliteration">${dua.transliteration}</div>
+                                <div class="favorite-actions">
+                                    <button class="btn-change btn-favorite-open" data-key="${encodedKey}">Open</button>
+                                    <button class="btn-change btn-favorite-remove" data-key="${encodedKey}">Remove</button>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                ` : `<div class="empty-sub">No favorites yet. Add a dua from the main screen.</div>`}
+            </div>
+        `;
+
         return `<!DOCTYPE html>
         <html lang="en">
         <head>
@@ -700,44 +794,50 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                 ${hijriDate ? `<span class="hijri-date">${hijriDate}</span>` : ''}
             </div>
 
-            ${locationSection}
+            <div id="mainScreen" class="${isFavoritesScreen ? 'screen-hidden' : ''}">
+                ${locationSection}
 
-            <div class="section">
-                <div class="section-label">Tasbih</div>
-                <div class="tasbih-wrapper" data-count="${tasbihCount}" data-target="${tasbihTarget}">
-                    <div class="tasbih-row">
-                        <div class="tasbih-left">
-                            <div class="tasbih-display">
-                                <span class="tasbih-count" id="tasbihCount">${tasbihCount}</span>
-                                <span class="tasbih-sep">/</span>
-                                <span class="tasbih-target-display" id="tasbihTargetDisplay">${tasbihTarget}</span>
+                <div class="section">
+                    <div class="section-label">Tasbih</div>
+                    <div class="tasbih-wrapper" data-count="${tasbihCount}" data-target="${tasbihTarget}">
+                        <div class="tasbih-row">
+                            <div class="tasbih-left">
+                                <div class="tasbih-display">
+                                    <span class="tasbih-count" id="tasbihCount">${tasbihCount}</span>
+                                    <span class="tasbih-sep">/</span>
+                                    <span class="tasbih-target-display" id="tasbihTargetDisplay">${tasbihTarget}</span>
+                                </div>
+                                <div class="tasbih-progress">
+                                    <div class="tasbih-progress-bar" id="tasbihProgressBar" style="width:${Math.min(100, (tasbihCount / tasbihTarget) * 100)}%"></div>
+                                </div>
                             </div>
-                            <div class="tasbih-progress">
-                                <div class="tasbih-progress-bar" id="tasbihProgressBar" style="width:${Math.min(100, (tasbihCount / tasbihTarget) * 100)}%"></div>
-                            </div>
+                            <button class="btn-tasbih ${tasbihCount >= tasbihTarget ? 'complete' : ''}" id="tasbihBtn">+</button>
                         </div>
-                        <button class="btn-tasbih ${tasbihCount >= tasbihTarget ? 'complete' : ''}" id="tasbihBtn">+</button>
+                        <div class="tasbih-controls">
+                            <button class="btn-change" id="tasbihResetBtn">Reset</button>
+                            <select id="tasbihTargetSelector">
+                                <option value="33"  ${tasbihTarget === 33  ? 'selected' : ''}>33</option>
+                                <option value="99"  ${tasbihTarget === 99  ? 'selected' : ''}>99</option>
+                                <option value="100" ${tasbihTarget === 100 ? 'selected' : ''}>100</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="tasbih-controls">
-                        <button class="btn-change" id="tasbihResetBtn">Reset</button>
-                        <select id="tasbihTargetSelector">
-                            <option value="33"  ${tasbihTarget === 33  ? 'selected' : ''}>33</option>
-                            <option value="99"  ${tasbihTarget === 99  ? 'selected' : ''}>99</option>
-                            <option value="100" ${tasbihTarget === 100 ? 'selected' : ''}>100</option>
-                        </select>
-                    </div>
+                </div>
+
+                <div class="section github-section">
+                    <div class="github-message">Open source & free forever</div>
+                    <a href="https://github.com/azizbecha/vsadhkar" class="github-link">View on GitHub →</a>
+                </div>
+
+                <div class="section palestine-section">
+                    <img src="${palestineFlag}" class="flag-img" />
+                    <span class="palestine-label">🍉 Free Palestine</span>
+                    <a href="https://www.gofundme.com/f/42fd8k-stand-with-gaza-provide-lifeline-to-families" class="btn-donate">Donate</a>
                 </div>
             </div>
 
-            <div class="section github-section">
-                <div class="github-message">Open source & free forever</div>
-                <a href="https://github.com/azizbecha/vsadhkar" class="github-link">View on GitHub →</a>
-            </div>
-
-            <div class="section palestine-section">
-                <img src="${palestineFlag}" class="flag-img" />
-                <span class="palestine-label">🍉 Free Palestine</span>
-                <a href="https://www.gofundme.com/f/42fd8k-stand-with-gaza-provide-lifeline-to-families" class="btn-donate">Donate</a>
+            <div id="favoritesScreen" class="${isFavoritesScreen ? '' : 'screen-hidden'}">
+                ${favoritesSection}
             </div>
 
             <script>
@@ -858,6 +958,34 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
 
                 document.getElementById('refreshDuaButton')?.addEventListener('click', () => {
                     vscode.postMessage({ command: 'refreshDua' });
+                });
+
+                document.getElementById('favoriteDuaButton')?.addEventListener('click', () => {
+                    vscode.postMessage({ command: 'toggleFavoriteDua' });
+                });
+
+                document.getElementById('openFavoritesButton')?.addEventListener('click', () => {
+                    vscode.postMessage({ command: 'showFavoritesScreen' });
+                });
+
+                document.getElementById('backToMainButton')?.addEventListener('click', () => {
+                    vscode.postMessage({ command: 'showMainScreen' });
+                });
+
+                document.querySelectorAll('.btn-favorite-open').forEach(btn => {
+                    btn.addEventListener('click', e => {
+                        const key = e.target.getAttribute('data-key');
+                        if (!key) { return; }
+                        vscode.postMessage({ command: 'pickFavoriteDua', key });
+                    });
+                });
+
+                document.querySelectorAll('.btn-favorite-remove').forEach(btn => {
+                    btn.addEventListener('click', e => {
+                        const key = e.target.getAttribute('data-key');
+                        if (!key) { return; }
+                        vscode.postMessage({ command: 'removeFavoriteDua', key });
+                    });
                 });
             </script>
         </body>
