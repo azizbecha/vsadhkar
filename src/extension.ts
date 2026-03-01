@@ -53,7 +53,7 @@ let currentDua: Dua | undefined;
 let allDuas: Dua[] = [];
 let duaRotationQueue: Dua[] = [];
 let favoriteDuas: Dua[] = [];
-let activeScreen: 'main' | 'favorites' = 'main';
+let activeScreen: 'main' | 'favorites' | 'settings' = 'main';
 let calculationMethod: number;
 let notifyBeforeMinutes: number;
 let duaLanguage: string;
@@ -463,7 +463,7 @@ export function activate(context: vscode.ExtensionContext) {
     hijriDate           = context.globalState.get("hijriDate");
     allDuas             = fetchAllDuas(context);
     favoriteDuas        = context.globalState.get<Dua[]>('vsadhkar.favoriteDuas', []);
-    activeScreen        = context.globalState.get<'main' | 'favorites'>('vsadhkar.activeScreen', 'main');
+    activeScreen        = context.globalState.get<'main' | 'favorites' | 'settings'>('vsadhkar.activeScreen', 'main');
 
     // ── Commands ─────────────────────────────────────────────────────────
     context.subscriptions.push(
@@ -607,6 +607,12 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     provider.updateWebview();
                     break;
                 }
+                case 'showSettingsScreen': {
+                    activeScreen = 'settings';
+                    this._context.globalState.update('vsadhkar.activeScreen', activeScreen);
+                    provider.updateWebview();
+                    break;
+                }
                 case 'showMainScreen': {
                     activeScreen = 'main';
                     this._context.globalState.update('vsadhkar.activeScreen', activeScreen);
@@ -681,6 +687,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
         const hasLocation = country !== undefined && state !== undefined && city !== undefined && prayerTimes !== undefined;
         const isCurrentFavorite = currentDua ? favoriteDuas.some(dua => isSameDua(dua, currentDua!)) : false;
         const isFavoritesScreen = activeScreen === 'favorites';
+        const isSettingsScreen = activeScreen === 'settings';
 
         const locationSection = hasLocation ? `
             <div class="section">
@@ -735,11 +742,55 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     <button class="btn-change dua-action-btn" id="openFavoritesButton">
                         Favorites (${favoriteDuas.length})
                     </button>
+                    <button class="btn-change dua-action-btn" id="openSettingsButton">
+                        Settings
+                    </button>
                 </div>
             </div>` : ''}
-
+            </div>` : `
             <div class="section">
-                <div class="section-label">Settings</div>
+                <div class="empty-state">
+                    <span class="empty-icon">📍</span>
+                    <div class="empty-title">No location set</div>
+                    <div class="empty-sub">Select your location to see prayer times</div>
+                    <button class="btn-primary" id="selectLocationButton">Select Location</button>
+                    <button class="btn-change" id="openSettingsButton">Settings</button>
+                </div>
+            </div>`;
+
+        const favoritesSection = `
+            <div class="section">
+                <div class="section-label favorites-header">
+                    <span>Favorite Duas</span>
+                    <button class="btn-change" id="backToMainFromFavoritesButton">Back</button>
+                </div>
+                ${favoriteDuas.length ? `
+                    <div class="favorites-list">
+                        ${favoriteDuas.map(dua => {
+                            const key = makeDuaKey(dua);
+                            const encodedKey = encodeURIComponent(key);
+                            return `
+                            <div class="favorite-card" data-key="${encodedKey}">
+                                <div class="favorite-translation">${dua.translation}</div>
+                                <div class="favorite-arabic">${dua.arabic}</div>
+                                <div class="favorite-transliteration">${dua.transliteration}</div>
+                                <div class="favorite-actions">
+                                    <button class="btn-change btn-favorite-open" data-key="${encodedKey}">Open</button>
+                                    <button class="btn-change btn-favorite-remove" data-key="${encodedKey}">Remove</button>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                ` : `<div class="empty-sub">No favorites yet. Add a dua from the main screen.</div>`}
+            </div>
+        `;
+
+        const settingsSection = `
+            <div class="section">
+                <div class="section-label favorites-header">
+                    <span>Settings</span>
+                    <button class="btn-change" id="backToMainFromSettingsButton">Back</button>
+                </div>
                 <div class="settings-rows">
                     <div class="setting-row">
                         <span class="setting-desc">Show dua every</span>
@@ -767,40 +818,6 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                         </select>
                     </div>
                 </div>
-            </div>` : `
-            <div class="section">
-                <div class="empty-state">
-                    <span class="empty-icon">📍</span>
-                    <div class="empty-title">No location set</div>
-                    <div class="empty-sub">Select your location to see prayer times</div>
-                    <button class="btn-primary" id="selectLocationButton">Select Location</button>
-                </div>
-            </div>`;
-
-        const favoritesSection = `
-            <div class="section">
-                <div class="section-label favorites-header">
-                    <span>Favorite Duas</span>
-                    <button class="btn-change" id="backToMainButton">Back</button>
-                </div>
-                ${favoriteDuas.length ? `
-                    <div class="favorites-list">
-                        ${favoriteDuas.map(dua => {
-                            const key = makeDuaKey(dua);
-                            const encodedKey = encodeURIComponent(key);
-                            return `
-                            <div class="favorite-card" data-key="${encodedKey}">
-                                <div class="favorite-translation">${dua.translation}</div>
-                                <div class="favorite-arabic">${dua.arabic}</div>
-                                <div class="favorite-transliteration">${dua.transliteration}</div>
-                                <div class="favorite-actions">
-                                    <button class="btn-change btn-favorite-open" data-key="${encodedKey}">Open</button>
-                                    <button class="btn-change btn-favorite-remove" data-key="${encodedKey}">Remove</button>
-                                </div>
-                            </div>`;
-                        }).join('')}
-                    </div>
-                ` : `<div class="empty-sub">No favorites yet. Add a dua from the main screen.</div>`}
             </div>
         `;
 
@@ -819,7 +836,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                 ${hijriDate ? `<span class="hijri-date">${hijriDate}</span>` : ''}
             </div>
 
-            <div id="mainScreen" class="${isFavoritesScreen ? 'screen-hidden' : ''}">
+            <div id="mainScreen" class="${(isFavoritesScreen || isSettingsScreen) ? 'screen-hidden' : ''}">
                 ${locationSection}
 
                 <div class="section">
@@ -863,6 +880,10 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
 
             <div id="favoritesScreen" class="${isFavoritesScreen ? '' : 'screen-hidden'}">
                 ${favoritesSection}
+            </div>
+
+            <div id="settingsScreen" class="${isSettingsScreen ? '' : 'screen-hidden'}">
+                ${settingsSection}
             </div>
 
             <script>
@@ -993,7 +1014,15 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     vscode.postMessage({ command: 'showFavoritesScreen' });
                 });
 
-                document.getElementById('backToMainButton')?.addEventListener('click', () => {
+                document.getElementById('openSettingsButton')?.addEventListener('click', () => {
+                    vscode.postMessage({ command: 'showSettingsScreen' });
+                });
+
+                document.getElementById('backToMainFromFavoritesButton')?.addEventListener('click', () => {
+                    vscode.postMessage({ command: 'showMainScreen' });
+                });
+
+                document.getElementById('backToMainFromSettingsButton')?.addEventListener('click', () => {
                     vscode.postMessage({ command: 'showMainScreen' });
                 });
 

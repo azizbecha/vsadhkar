@@ -351,6 +351,10 @@ select {
     background: var(--vscode-button-hoverBackground);
 }
 
+.empty-state .btn-change {
+    margin-top: 8px;
+}
+
 /* ── Tasbih ──────────────────────────────────────────── */
 .tasbih-wrapper {
     display: flex;
