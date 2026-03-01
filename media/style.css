@@ -255,6 +255,15 @@ body {
     margin-bottom: 4px;
 }
 
+.favorite-arabic {
+    font-size: 15px;
+    line-height: 1.7;
+    text-align: right;
+    direction: rtl;
+    color: var(--vscode-foreground);
+    margin-bottom: 4px;
+}
+
 .favorite-transliteration {
     font-size: 11px;
     color: var(--vscode-descriptionForeground);

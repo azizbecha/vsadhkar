@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 import moment from 'moment';
 
-import { fetchAllDuas, pickRandomDua } from './lib/fetchDua';
+import { fetchAllDuas } from './lib/fetchDua';
 import { Dua } from './interfaces';
 
 const SERVER_URL = 'https://vsadhkar-server.vercel.app';
@@ -51,6 +51,7 @@ let dailyRefreshInterval: NodeJS.Timeout | undefined;
 let hijriDate: string | undefined;
 let currentDua: Dua | undefined;
 let allDuas: Dua[] = [];
+let duaRotationQueue: Dua[] = [];
 let favoriteDuas: Dua[] = [];
 let activeScreen: 'main' | 'favorites' = 'main';
 let calculationMethod: number;
@@ -119,9 +120,32 @@ const isSameDua = (a: Dua, b: Dua): boolean => makeDuaKey(a) === makeDuaKey(b);
 
 const findDuaByKey = (key: string): Dua | undefined => allDuas.find(dua => makeDuaKey(dua) === key);
 
-const showDua = (context: vscode.ExtensionContext) => {
+const shuffleDuas = (duas: Dua[]): Dua[] => {
+    const items = [...duas];
+    for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items;
+};
+
+const refillDuaQueue = () => {
+    if (!allDuas.length) { return; }
+    const shuffled = shuffleDuas(allDuas);
+    if (currentDua && shuffled.length > 1 && isSameDua(shuffled[0], currentDua)) {
+        [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+    }
+    duaRotationQueue = shuffled;
+};
+
+const getNextDua = (context: vscode.ExtensionContext): Dua => {
     if (!allDuas.length) { allDuas = fetchAllDuas(context); }
-    const dua: Dua = pickRandomDua(allDuas);
+    if (!duaRotationQueue.length) { refillDuaQueue(); }
+    return duaRotationQueue.shift() ?? allDuas[0];
+};
+
+const showDua = (context: vscode.ExtensionContext) => {
+    const dua: Dua = getNextDua(context);
     currentDua = dua;
     vscode.window.showInformationMessage(duaLanguage === 'translation' ? dua.translation : dua.arabic);
 };
@@ -473,7 +497,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // ── Initial dua ───────────────────────────────────────────────────────
-    currentDua = pickRandomDua(allDuas);
+    currentDua = getNextDua(context);
 
     // ── Minute-tick: keeps status bar label current ───────────────────────
     setInterval(() => updateLocationAndPrayerTimes(context), 60000);
@@ -542,7 +566,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     vscode.commands.executeCommand('vsadhkar.selectLocation');
                     break;
                 case 'refreshDua':
-                    currentDua = pickRandomDua(allDuas);
+                    currentDua = getNextDua(this._context);
                     provider.updateWebview();
                     break;
                 case 'toggleFavoriteDua': {
@@ -572,7 +596,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                     favoriteDuas = favoriteDuas.filter(dua => makeDuaKey(dua) !== key);
                     this._context.globalState.update('vsadhkar.favoriteDuas', favoriteDuas);
                     if (currentDua && makeDuaKey(currentDua) === key) {
-                        currentDua = pickRandomDua(allDuas);
+                        currentDua = getNextDua(this._context);
                     }
                     provider.updateWebview();
                     break;
@@ -767,6 +791,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                             return `
                             <div class="favorite-card" data-key="${encodedKey}">
                                 <div class="favorite-translation">${dua.translation}</div>
+                                <div class="favorite-arabic">${dua.arabic}</div>
                                 <div class="favorite-transliteration">${dua.transliteration}</div>
                                 <div class="favorite-actions">
                                     <button class="btn-change btn-favorite-open" data-key="${encodedKey}">Open</button>
