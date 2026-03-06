@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import moment from 'moment';
 
 import { fetchAllDuas } from './lib/fetchDua';
-import { Dua } from './interfaces';
+import type { Dua } from './interfaces';
 
 const SERVER_URL = 'https://vsadhkar-server.vercel.app';
 
@@ -40,7 +40,6 @@ let state: string | undefined;
 let city: string | undefined;
 
 let prayerTimes: { [key: string]: string } | undefined;
-let sunTimings: { [key: string]: string } | undefined;
 
 let nextPrayerItem: vscode.StatusBarItem;
 let provider: ExampleSidebarProvider;
@@ -1051,5 +1050,5 @@ export function deactivate() {
     if (intervalId)             { clearInterval(intervalId); }
     if (midnightRefreshTimeout) { clearTimeout(midnightRefreshTimeout); }
     if (dailyRefreshInterval)   { clearInterval(dailyRefreshInterval); }
-    prayerNotificationTimeouts.forEach(t => clearTimeout(t));
+    prayerNotificationTimeouts.map(t => clearTimeout(t));
 }
