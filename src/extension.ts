@@ -873,7 +873,7 @@ class ExampleSidebarProvider implements vscode.WebviewViewProvider {
                 <div class="section palestine-section">
                     <img src="${palestineFlag}" class="flag-img" />
                     <span class="palestine-label">🍉 Free Palestine</span>
-                    <a href="https://www.gofundme.com/f/42fd8k-stand-with-gaza-provide-lifeline-to-families" class="btn-donate">Donate</a>
+                    <a href="https://www.launchgood.com/v4/campaign/palestine_emergency_campaign_with_yahya_buisir?utm_source=ig&utm_medium=social&utm_content=link_in_bio&fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQMMjU2MjgxMDQwNTU4AAGneiOgIpQLrYEVmfGzkw66J4JNIo15fRDuqIfpchosvrVcSdcGfgwERvO4TXA_aem_WLc2sGMtROXE532OKSgesg" class="btn-donate">Donate</a>
                 </div>
             </div>
 
